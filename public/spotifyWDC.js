@@ -1,7 +1,12 @@
 // Define our Web Data Connector
 (function() {
-    var params = getHashParams();
-    var access_token = params.access_token,
+    var $ = require('jquery');
+    var _ = require('underscore');
+    var Spotify = require('spotify-web-api-js');
+    
+    var s = new Spotify(),
+        params = getHashParams();
+        access_token = params.access_token,
         refresh_token = params.refresh_token,
         error = params.error;
 
