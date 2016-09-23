@@ -1,0 +1,15 @@
+[
+    {
+        "alias": "Top Artists - Short Term",
+        "id": "shortTermArtists",
+        "columns": [
+            { "id": "name", "dataType": "string" },
+            { "id": "uri", "dataType": "string" },
+            { "id": "popularity", "dataType": "int" },
+            { "id": "id", "dataType": "string" },
+            { "id": "href",  "dataType": "string" },
+            { "id": "followers",  "dataType": "int" },
+            { "id": "imagelink",  "dataType": "string" }
+        ]
+    }
+]
