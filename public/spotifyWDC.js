@@ -8,6 +8,141 @@ var s, params, access_token, refresh_token, error;;
 
     myConnector.init = function(initCallback){
         s = new SpotifyWebApi();
+        
+        if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
+            tableau.password = access_token;
+        }
+      
+        initCallback();
+    };
+
+    myConnector.getSchema = function(schemaCallback) {
+        $.getJSON("./schema.json", function(schemaJson) {
+            schemaCallback(schemaJson);
+        });
+    }
+
+    myConnector.getData = function(table, doneCallback) {        
+        var promise;
+        s.setAccessToken(tableau.password); 
+        
+        switch(table.tableInfo.id) {
+            case "topArtists":
+                promise = getMyTopArtistsPromise(table); 
+                break;
+            case "topTracks":
+                promise = getMyTopTracksPromise(table);
+                break;
+            default:
+                console.err("Invalid ID");
+                break;
+        }
+
+        promise.then(function(response) {
+             doneCallback();
+         }, function(error) {
+             console.error(error);
+         });
+    }
+
+    tableau.registerConnector(myConnector);
+
+
+    //-------------------------------API Requestors---------------------------
+        
+    function getMyTopArtistsPromise(table) { 
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var entry = [];
+
+            s.getMyTopArtists().then(function(data) {
+                console.log("top artists: ", data);
+                
+                _.each(data.items, function(artist) {
+                    var imageUrl = "";
+                    var followersTotal = 0;
+
+                    if (artist.images[0]) {
+                        imageUrl = artist.images[0].url
+                    }
+
+                    if (artist.followers) {
+                        followersTotal = artist.followers.total;
+                    }
+                    
+                    entry = {
+                        "name": artist.name,
+                        "uri": artist.uri,
+                        "popularity": artist.popularity,
+                        "id": artist.id,
+                        "href": artist.href,
+                        "followers": followersTotal,
+                        "image_link": imageUrl
+                    };
+
+                    toRet.push(entry)
+                });
+
+                table.appendRows(toRet);
+                resolve();
+
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });
+    }
+
+    function getMyTopTracksPromise(table) { 
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var entry = [];
+
+            s.getMyTopTracks({time_range: tableau.connectionData}).then(function(data) {
+                console.log("top tracks: ", data);
+                
+                _.each(data.items, function(track) {
+                    var imageUrl = "";
+                    var followersTotal = 0;
+
+                    if (track.album.images[0]) {
+                        imageUrl = track.album.images[0].url
+                    }
+                    
+                    entry = {
+                        "album_type": track.album.album_type,
+                        "album_href": track.album.href,
+                        "album_id": track.album.id,
+                        "album_image_link": imageUrl,
+                        "album_name": track.album.name,
+                        "album_uri": track.album.uri,
+                        "artist_id": track.artists[0].id,
+                        "artist_name": track.artists[0].name,
+                        "track_number": track.track_number,
+                        "duration_ms": track.duration_ms,
+                        "is_explicit": track.explicit,
+                        "href": track.href,
+                        "uri": track.uri,
+                        "id": track.id,
+                        "preview_url": track.preview_url
+                    };
+
+                    toRet.push(entry)
+                });
+
+                table.appendRows(toRet);
+                resolve();
+
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });
+    }
+
+    //--------------------------------HELPERS---------------------------------
+
+    $(document).ready(function() {  
         params = getHashParams();
         
         access_token = params.access_token,
@@ -18,45 +153,12 @@ var s, params, access_token, refresh_token, error;;
 
         if (error) {
             console.error("There was an error during the authentication");
-        } else {
-
         }
 
-        if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
-            tableau.password = access_token;
+        if (!access_token) {
+            window.location.href = "/login"
         }
 
-        initCallback();
-    };
-
-    myConnector.getSchema = function(schemaCallback) {
-        $.getJSON("./schema.json", function(schemaJson) {
-            schemaCallback(schemaJson);
-        });
-    }
-
-    myConnector.getData = function(table, doneCallback) {
-        s.setAccessToken(tableau.password);
-        
-        s.getUserPlaylists()  // note that we don't pass a user id
-        .then(function(data) {
-            console.log('User playlists', data);
-        }, function(err) {
-            console.error(err);
-        });
-
-        s.getMyTopArtists().then(function(data) {
-            console.log("top tracks: ", data);
-        }, function(err) {
-            console.error(err);
-        });
-    }
-
-    tableau.registerConnector(myConnector);
-
-    //--------------------------------HELPERS---------------------------------
-
-    $(document).ready(function() {
         $("#getdata").click(function() { // This event fires when a button is clicked
             setupConnector();
         });
@@ -79,6 +181,7 @@ var s, params, access_token, refresh_token, error;;
 
     function setupConnector() {
         tableau.connectionName = "Spotify Connector";
+        tableau.connectionData = "long_term";/*document.querySelector('input[name="term"]:checked').value;*/
         tableau.submit();
     };
 
