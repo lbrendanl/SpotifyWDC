@@ -13,10 +13,11 @@ var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 var config = require('./config.js');              // Get our config info (app id and app secret)
 
-var client_id = config.CLIENT_ID || 'CLIENT_ID'; // Your client id
-var client_secret = config.CLIENT_SECRET || 'CLIENT_SECRET'; // Your secret
-var redirect_uri = config.REDIRECT_URI || 'REDIRECT_URI'; // Your redirect uri
-var port = config.PORT || 8888; // Your client id
+var client_id = process.env.CLIENT_ID || config.CLIENT_ID; // Your client sid
+var client_secret = process.env.CLIENT_SECRET || config.CLIENT_SECRET; // Your secret
+var redirect_uri = process.env.REDIRECT_URI || config.REDIRECT_URI; // Your redirect uri
+var port = process.config.PORT || config.PORT;
+
 
 /**
  * Generates a random string containing numbers and letters
