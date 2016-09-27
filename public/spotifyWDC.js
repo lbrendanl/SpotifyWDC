@@ -8,21 +8,21 @@ var s, params, access_token, refresh_token, error;;
 
     myConnector.init = function(initCallback){
         s = new SpotifyWebApi();
-        
+
         params = getHashParams();
         
         access_token = params.access_token,
         refresh_token = params.refresh_token,
         error = params.error;
         
-        console.log("Platform Version: " + tableau.platformVersion);
-
         if (error) {
             console.error("There was an error during the authentication");
         }
 
         if (!access_token) {
-            window.location.href = "/login"
+            if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
+                window.location.href = "/login"
+            }
         }
 
         if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
@@ -33,10 +33,8 @@ var s, params, access_token, refresh_token, error;;
     };
 
     myConnector.getSchema = function(schemaCallback) {
-        console.log("asdf: getschema called");
         $.getJSON( "./schema.json" )
         .done(function( schemaJson ) {
-            console.log("asdf: " + schemaJson);
             schemaCallback(schemaJson);
         })
         .fail(function( jqxhr, textStatus, error ) {
