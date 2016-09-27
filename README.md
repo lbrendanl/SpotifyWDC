@@ -1,5 +1,8 @@
 # SpotifyWDC
 
-npm install
+To use, do the following:
 
-browserify public/spotifyWDC.js -o public/bundle.js
+* npm install
+* Create an app on spotify developer platform: https://developer.spotify.com/my-applications/#!/applications
+* Rename config_template.js to config.js
+* Replace YOUR_CLIENT_ID and YOUR_CLIENT_SECRET with the appropriate values from your new spotify app.
