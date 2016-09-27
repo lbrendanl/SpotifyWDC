@@ -12,6 +12,7 @@ var request = require('request'); // "Request" library
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 var config = require('./config.js');              // Get our config info (app id and app secret)
+var path = require('path');
 
 var client_id = config.CLIENT_ID || 'CLIENT_ID'; // Your client id
 var client_secret = config.CLIENT_SECRET || 'CLIENT_SECRET'; // Your secret
@@ -37,7 +38,7 @@ var stateKey = 'spotify_auth_state';
 
 var app = express();
 
-app.use(express.static(__dirname + '/public'))
+app.use(express.static(path.join(__dirname, '/public')))
    .use(cookieParser());
 
 app.get('/login', function(req, res) {
