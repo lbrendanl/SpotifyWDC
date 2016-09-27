@@ -9,6 +9,22 @@ var s, params, access_token, refresh_token, error;;
     myConnector.init = function(initCallback){
         s = new SpotifyWebApi();
         
+        params = getHashParams();
+        
+        access_token = params.access_token,
+        refresh_token = params.refresh_token,
+        error = params.error;
+        
+        console.log("Platform Version: " + tableau.platformVersion);
+
+        if (error) {
+            console.error("There was an error during the authentication");
+        }
+
+        if (!access_token) {
+            window.location.href = "/login"
+        }
+
         if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
             tableau.password = access_token;
         }
@@ -17,8 +33,15 @@ var s, params, access_token, refresh_token, error;;
     };
 
     myConnector.getSchema = function(schemaCallback) {
-        $.getJSON("./schema.json", function(schemaJson) {
+        console.log("asdf: getschema called");
+        $.getJSON( "./schema.json" )
+        .done(function( schemaJson ) {
+            console.log("asdf: " + schemaJson);
             schemaCallback(schemaJson);
+        })
+        .fail(function( jqxhr, textStatus, error ) {
+            var err = textStatus + ", " + error;
+            console.log( "Request Failed: " + err );
         });
     }
 
@@ -143,22 +166,6 @@ var s, params, access_token, refresh_token, error;;
     //--------------------------------HELPERS---------------------------------
 
     $(document).ready(function() {  
-        params = getHashParams();
-        
-        access_token = params.access_token,
-        refresh_token = params.refresh_token,
-        error = params.error;
-        
-        console.log("Platform Version: " + tableau.platformVersion);
-
-        if (error) {
-            console.error("There was an error during the authentication");
-        }
-
-        if (!access_token) {
-            window.location.href = "/login"
-        }
-
         $("#getdata").click(function() { // This event fires when a button is clicked
             setupConnector();
         });
