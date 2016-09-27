@@ -16,7 +16,7 @@ var config = require('./config.js');              // Get our config info (app id
 var client_id = process.env.CLIENT_ID || config.CLIENT_ID; // Your client sid
 var client_secret = process.env.CLIENT_SECRET || config.CLIENT_SECRET; // Your secret
 var redirect_uri = process.env.REDIRECT_URI || config.REDIRECT_URI; // Your redirect uri
-var port = process.config.PORT || config.PORT;
+var port = process.env.PORT || config.PORT;
 
 
 /**
