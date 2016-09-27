@@ -76,7 +76,7 @@ var s, params, access_token, refresh_token, error;;
             var toRet = [];
             var entry = [];
 
-            s.getMyTopArtists().then(function(data) {
+            s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {
                 console.log("top artists: ", data);
                 
                 _.each(data.items, function(artist) {
