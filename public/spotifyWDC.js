@@ -186,7 +186,7 @@ var s, params, access_token, refresh_token, error;;
 
     function setupConnector() {
         tableau.connectionName = "Spotify Connector";
-        tableau.connectionData = "long_term";/*document.querySelector('input[name="term"]:checked').value;*/
+        tableau.connectionData = document.querySelector('input[name="term"]:checked').value;
         tableau.submit();
     };
 
