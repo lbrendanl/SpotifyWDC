@@ -11,7 +11,7 @@ var express = require('express'); // Express web server framework
 var request = require('request'); // "Request" library
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
-var config = require('./config.js');              // Get our config info (app id and app secret)
+var config = require('./secret_config.js');              // Get our config info (app id and app secret)
 
 var client_id = process.env.CLIENT_ID || config.CLIENT_ID; // Your client sid
 var client_secret = process.env.CLIENT_SECRET || config.CLIENT_SECRET; // Your secret
@@ -48,7 +48,7 @@ app.get('/login', function(req, res) {
   res.cookie(stateKey, state);
 
   // your application requests authorization
-  var scope = 'user-read-private user-read-email user-top-read';
+  var scope = 'user-read-private user-read-email user-top-read playlist-read-private';
   res.redirect('https://accounts.spotify.com/authorize?' +
     querystring.stringify({
       response_type: 'code',

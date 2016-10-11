@@ -32,5 +32,44 @@
             { "id": "id",  "dataType": "string" },
             { "id": "preview_url",  "dataType": "string" }
         ]
+    }, 
+    {
+        "alias": "Artists",
+        "id": "artists",
+        "columns": [
+            { "id": "followers", "dataType": "int" },
+            { "id": "genre1", "dataType": "string" },
+            { "id": "genre2", "dataType": "string" },
+            { "id": "href",  "dataType": "string" },
+            { "id": "id",  "dataType": "string" },
+            { "id": "image_link",  "dataType": "string" },
+            { "id": "name",  "dataType": "string" },
+            { "id": "popularity",  "dataType": "string" },
+            { "id": "uri",  "dataType": "int" },
+            { "id": "related_artist1_id",  "dataType": "string" },
+            { "id": "related_artist2_id",  "dataType": "string" },
+            { "id": "related_artist3_id",  "dataType": "string" }
+        ]
+    },
+    {
+        "alias": "Albums",
+        "id": "albums",
+        "columns": [
+            { "id": "album_type", "dataType": "string" },
+            { "id": "album_href", "dataType": "string" },
+            { "id": "album_id", "dataType": "string" },
+            { "id": "album_image_link",  "dataType": "string" },
+            { "id": "album_name",  "dataType": "string" },
+            { "id": "album_uri",  "dataType": "string" },
+            { "id": "artist_id",  "dataType": "string" },
+            { "id": "artist_name",  "dataType": "string" },
+            { "id": "track_number",  "dataType": "int" },
+            { "id": "duration_ms",  "dataType": "int" },
+            { "id": "is_explicit",  "dataType": "bool" },
+            { "id": "href",  "dataType": "string" },
+            { "id": "uri",  "dataType": "string" },
+            { "id": "id",  "dataType": "string" },
+            { "id": "preview_url",  "dataType": "string" }
+        ]
     }
 ]

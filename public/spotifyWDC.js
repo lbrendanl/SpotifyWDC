@@ -1,5 +1,7 @@
 "use strict";
 
+var artistIDs = ["4tZwfgrHOc3mvqYlEYSvVi"];
+
 var s, params, access_token, refresh_token, error;;
 
 // Define our Web Data Connector
@@ -54,8 +56,11 @@ var s, params, access_token, refresh_token, error;;
             case "topTracks":
                 promise = getMyTopTracksPromise(table);
                 break;
+            case "artists":
+                promise = getArtistsPromise(table);
+                break;
             default:
-                console.err("Invalid ID");
+                console.error("Invalid ID");
                 break;
         }
 
@@ -76,29 +81,16 @@ var s, params, access_token, refresh_token, error;;
             var toRet = [];
             var entry = [];
 
-            s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {
-                console.log("top artists: ", data);
-                
-                _.each(data.items, function(artist) {
-                    var imageUrl = "";
-                    var followersTotal = 0;
-
-                    if (artist.images[0]) {
-                        imageUrl = artist.images[0].url
-                    }
-
-                    if (artist.followers) {
-                        followersTotal = artist.followers.total;
-                    }
-                    
+            s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {               
+                _.each(data.items, function(artist) {                   
                     entry = {
                         "name": artist.name,
                         "uri": artist.uri,
                         "popularity": artist.popularity,
                         "id": artist.id,
                         "href": artist.href,
-                        "followers": followersTotal,
-                        "image_link": imageUrl
+                        "followers": artist.followers ? artist.followers.total : 0,
+                        "image_link": artist.images[0] ? artist.images[0].url : null
                     };
 
                     toRet.push(entry)
@@ -119,17 +111,8 @@ var s, params, access_token, refresh_token, error;;
             var toRet = [];
             var entry = [];
 
-            s.getMyTopTracks({time_range: tableau.connectionData}).then(function(data) {
-                console.log("top tracks: ", data);
-                
+            s.getMyTopTracks({time_range: tableau.connectionData}).then(function(data) {               
                 _.each(data.items, function(track) {
-                    var imageUrl = "";
-                    var followersTotal = 0;
-
-                    if (track.album.images[0]) {
-                        imageUrl = track.album.images[0].url
-                    }
-                    
                     entry = {
                         "album_type": track.album.album_type,
                         "album_href": track.album.href,
@@ -160,7 +143,68 @@ var s, params, access_token, refresh_token, error;;
             });
         });
     }
+    
+    function getArtistsPromise(table) { 
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var entry = [];
+            
+            var promise = getRelatedArtistsPromise();
+            
+            promise.then(function(response) {
+                s.getArtists(artistIDs).then(function(data) {                
+                    _.each(data.artists, function(artist) {
+                        entry = {
+                            "followers": artist.followers ? artist.followers.total : 0,
+                            "genre1": artist.genres[0] || null,
+                            "genre2": artist.genres[1] || null,
+                            "href": artist.href,
+                            "image_link":artist.images[0] ? artist.images[0].url : null,
+                            "name": artist.name,
+                            "popularity":artist.popularity,
+                            "uri": artist.uri,
+                            "id": artist.id,
+                            "related_artist1_id": response[0] || null,
+                            "related_artist2_id":  response[1] || null,
+                            "related_artist3_id":  response[2] || null                           
+                        };
 
+                        toRet.push(entry)
+                    });
+
+                    table.appendRows(toRet);
+                    resolve();
+
+                }, function(err) {
+                    console.error(err);
+                    Promise.reject(err);
+                });
+            }, function(error) {
+                console.error(error);
+            });
+        });
+    }
+    
+    function getRelatedArtistsPromise() { 
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var i = 0;
+
+            s.getArtistRelatedArtists(artistIDs[0]).then(function(data) {               
+                for (i = 0; i < 3; i++) {
+                    if (data.artists[i]) {
+                        toRet.push(data.artists[i].id);
+                    }
+                }
+                
+                resolve(toRet);
+
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });
+    }
     //--------------------------------HELPERS---------------------------------
 
     $(document).ready(function() {  
