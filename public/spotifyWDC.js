@@ -49,6 +49,9 @@ var s, params, access_token, refresh_token, error;;
         var promise;
         s.setAccessToken(tableau.password); 
         
+        var offset = 0, limit = 50, i;
+        var promises = [];
+        
         switch(table.tableInfo.id) {
             case "topArtists":
                 promise = getMyTopArtistsPromise(table); 
@@ -57,10 +60,26 @@ var s, params, access_token, refresh_token, error;;
                 promise = getMyTopTracksPromise(table);
                 break;
             case "artists":
-                promise = getArtistsPromise(table);
+                promise = getMyArtistsPromise(table);
+                break;
+            case "albums":
+                for (i = 0; i < 3; i++) {
+                    promises.push(getMyAlbumsPromise(table, offset, limit));
+                    offset+=limit;   
+                }
+                
+                promise = Promise.all(promises);
+                break;
+            case "tracks":
+                for (i = 0; i < 3; i++) {
+                    promises.push(getMyTracksPromise(table, offset, limit));
+                    offset+=limit;   
+                }
+                
+                promise = Promise.all(promises);
                 break;
             default:
-                console.error("Invalid ID");
+                console.error("Unknown table ID");
                 break;
         }
 
@@ -84,13 +103,15 @@ var s, params, access_token, refresh_token, error;;
             s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {               
                 _.each(data.items, function(artist) {                   
                     entry = {
-                        "name": artist.name,
-                        "uri": artist.uri,
-                        "popularity": artist.popularity,
-                        "id": artist.id,
-                        "href": artist.href,
                         "followers": artist.followers ? artist.followers.total : 0,
-                        "image_link": artist.images[0] ? artist.images[0].url : null
+                        "genre1": artist.genres[0] || null,
+                        "genre2": artist.genres[1] || null,
+                        "href": artist.href,
+                        "id": artist.id,
+                        "image_link":artist.images[0] ? artist.images[0].url : null,
+                        "name": artist.name,
+                        "popularity":artist.popularity,
+                        "uri": artist.uri
                     };
 
                     toRet.push(entry)
@@ -114,21 +135,17 @@ var s, params, access_token, refresh_token, error;;
             s.getMyTopTracks({time_range: tableau.connectionData}).then(function(data) {               
                 _.each(data.items, function(track) {
                     entry = {
-                        "album_type": track.album.album_type,
-                        "album_href": track.album.href,
                         "album_id": track.album.id,
-                        "album_image_link": imageUrl,
-                        "album_name": track.album.name,
-                        "album_uri": track.album.uri,
                         "artist_id": track.artists[0].id,
                         "artist_name": track.artists[0].name,
-                        "track_number": track.track_number,
                         "duration_ms": track.duration_ms,
-                        "is_explicit": track.explicit,
+                        "explicit": track.explicit,
                         "href": track.href,
-                        "uri": track.uri,
                         "id": track.id,
-                        "preview_url": track.preview_url
+                        "name": track.name,
+                        "preview_url": track.preview_url,
+                        "track_number": track.track_number,
+                        "uri": track.uri
                     };
 
                     toRet.push(entry)
@@ -144,7 +161,7 @@ var s, params, access_token, refresh_token, error;;
         });
     }
     
-    function getArtistsPromise(table) { 
+    function getMyArtistsPromise(table) { 
         return new Promise(function(resolve, reject) {
             var toRet = [];
             var entry = [];
@@ -159,14 +176,14 @@ var s, params, access_token, refresh_token, error;;
                             "genre1": artist.genres[0] || null,
                             "genre2": artist.genres[1] || null,
                             "href": artist.href,
-                            "image_link":artist.images[0] ? artist.images[0].url : null,
+                            "id": artist.id,
+                            "image_link": artist.images[0] ? artist.images[0].url : null,
                             "name": artist.name,
                             "popularity":artist.popularity,
-                            "uri": artist.uri,
-                            "id": artist.id,
                             "related_artist1_id": response[0] || null,
                             "related_artist2_id":  response[1] || null,
-                            "related_artist3_id":  response[2] || null                           
+                            "related_artist3_id":  response[2] || null,
+                            "uri": artist.uri                        
                         };
 
                         toRet.push(entry)
@@ -183,6 +200,109 @@ var s, params, access_token, refresh_token, error;;
                 console.error(error);
             });
         });
+    }
+    
+    function getMyAlbumsPromise(table, offset, limit) {
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var entry = [];
+
+            s.getMySavedAlbums({limit: limit, offset: offset}).then(function(data) {               
+                _.each(data.items, function(albumObject) {
+                    entry = {
+                        "added_at": albumObject.added_at,
+                        "artist_id": albumObject.album.artists[0].id,
+                        "genre1": albumObject.album.genres[0] || null,
+                        "genre2": albumObject.album.genres[1] || null,
+                        "href": albumObject.album.href,
+                        "id": albumObject.album.id,
+                        "image_link": albumObject.album.images[0] ? albumObject.album.images[0].url : null,
+                        "name": albumObject.album.name,
+                        "popularity": albumObject.album.popularity,
+                        "release_date": albumObject.album.release_date,
+                        "type": albumObject.album.type,
+                        "uri": albumObject.album.uri
+                    };
+
+                    toRet.push(entry)
+                });
+
+                table.appendRows(toRet);
+                resolve();
+
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        }); 
+    }
+    
+    function getMyTracksPromise(table, offset, limit) {
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var entry = [];
+
+            s.getMySavedTracks({limit: limit, offset: offset}).then(function(data) {               
+                var featurePromise = getTrackFeaturesPromise(data.items, offset, limit);
+                
+                featurePromise.then(function(response) {                    
+                    _.each(data.items, function(trackObject, index) {
+                        entry = {
+                            "added_at": trackObject.added_at,
+                            "album_id": trackObject.track.album.id,
+                            "artist_id": trackObject.track.artists[0].id,
+                            "artist_name": trackObject.track.artists[0].name,
+                            "duration_ms": trackObject.track.duration_ms,
+                            "explicit": trackObject.track.explicit,
+                            "href": trackObject.track.href,
+                            "id": trackObject.track.id,
+                            "name": trackObject.track.name,
+                            "preview_url": trackObject.track.preview_url,
+                            "track_number": trackObject.track.track_number,
+                            "uri": trackObject.track.uri,
+                            "danceability": response.audio_features[index].danceability,
+                            "energy": response.audio_features[index].energy,
+                            "key": response.audio_features[index].key,
+                            "loudness": response.audio_features[index].loudness,
+                            "mode": response.audio_features[index].mode,
+                            "speechiness": response.audio_features[index].speechiness,
+                            "acousticness": response.audio_features[index].acousticness,
+                            "instrumentalness": response.audio_features[index].instrumentalness,
+                            "liveness": response.audio_features[index].liveness,
+                            "valence": response.audio_features[index].valence,
+                            "tempo": response.audio_features[index].tempo,
+                            "time_signature": response.audio_features[index].time_signature
+                        };
+
+                        toRet.push(entry)
+                    });
+                    
+                    
+                    table.appendRows(toRet);
+                    resolve();
+                }, function(error) {
+                    console.error(error);
+                });
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });   
+    }
+    
+    function getTrackFeaturesPromise(items, limit, offset) {
+        var ids = [];
+        _.each(items, function(trackObject) {
+           ids.push(trackObject.track.id); 
+        });
+        return new Promise(function(resolve, reject) {
+            s.getAudioFeaturesForTracks(ids).then(function(data) {               
+                resolve(data);
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });         
     }
     
     function getRelatedArtistsPromise() { 
@@ -205,7 +325,28 @@ var s, params, access_token, refresh_token, error;;
             });
         });
     }
-    //--------------------------------HELPERS---------------------------------
+    
+    function getArtistsAlbumsPromise() { 
+        return new Promise(function(resolve, reject) {
+            var toRet = [];
+            var i = 0;
+
+            s.getArtistRelatedArtists(artistIDs[0]).then(function(data) {               
+                for (i = 0; i < 3; i++) {
+                    if (data.artists[i]) {
+                        toRet.push(data.artists[i].id);
+                    }
+                }
+                
+                resolve(toRet);
+
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });
+    } 
+   
 
     $(document).ready(function() {  
         $("#getdata").click(function() { // This event fires when a button is clicked
