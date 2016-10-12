@@ -36,10 +36,17 @@ var s, params, access_token, refresh_token, error;;
 
     myConnector.getSchema = function(schemaCallback) {
         $.getJSON( "./schema.json" )
-        .done(function( schemaJson ) {
-            schemaCallback(schemaJson);
+        .done(function(scehma_json) {
+            $.getJSON("./standard_connections.json")
+            .done(function(standard_connections_json) {
+                schemaCallback(scehma_json, standard_connections_json.connections);
+            })
+            .fail(function(jqxhr, textStatus, error) {
+                var err = textStatus + ", " + error;
+                console.log("Request Failed: " + err);
+            });
         })
-        .fail(function( jqxhr, textStatus, error ) {
+        .fail(function(jqxhr, textStatus, error) {
             var err = textStatus + ", " + error;
             console.log( "Request Failed: " + err );
         });
@@ -71,7 +78,7 @@ var s, params, access_token, refresh_token, error;;
                 promise = Promise.all(promises);
                 break;
             case "tracks":
-                for (i = 0; i < 3; i++) {
+                for (i = 0; i < 10; i++) {
                     promises.push(getMyTracksPromise(table, offset, limit));
                     offset+=limit;   
                 }
