@@ -1,6 +1,6 @@
 "use strict";
 
-var artistIDs = ["4tZwfgrHOc3mvqYlEYSvVi"];
+var artistIDs = [];
 
 var s, params, access_token, refresh_token, error;;
 
@@ -25,6 +25,8 @@ var s, params, access_token, refresh_token, error;;
             if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
                 window.location.href = "/login"
             }
+        } else {
+            toggleUIState(true);
         }
 
         if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
@@ -59,6 +61,9 @@ var s, params, access_token, refresh_token, error;;
         var offset = 0, limit = 50, i;
         var promises = [];
         
+        var maxArtistIDs = 50;
+        var artistIDsSlice = [];
+        
         switch(table.tableInfo.id) {
             case "topArtists":
                 promise = getMyTopArtistsPromise(table); 
@@ -67,7 +72,15 @@ var s, params, access_token, refresh_token, error;;
                 promise = getMyTopTracksPromise(table);
                 break;
             case "artists":
-                promise = getMyArtistsPromise(table);
+                for (i = 1; i <= artistIDs.length; i++) {
+                    artistIDsSlice.push(artistIDs[i]);
+                    
+                    if ( (i % maxAristIDs) == 0 || i == artistIDs.length)
+                    promises.push(get<getMyArtistsPromise(table, artistIDsSlice));
+                    offset+=limit;   
+                }
+                
+                promise = Promise.all(promises);
                 break;
             case "albums":
                 for (i = 0; i < 3; i++) {
@@ -78,7 +91,7 @@ var s, params, access_token, refresh_token, error;;
                 promise = Promise.all(promises);
                 break;
             case "tracks":
-                for (i = 0; i < 10; i++) {
+                for (i = 0; i < 3; i++) {
                     promises.push(getMyTracksPromise(table, offset, limit));
                     offset+=limit;   
                 }
@@ -93,6 +106,7 @@ var s, params, access_token, refresh_token, error;;
         promise.then(function(response) {
              doneCallback();
          }, function(error) {
+             tableau.abortWithError(error);
              console.error(error);
          });
     }
@@ -168,7 +182,7 @@ var s, params, access_token, refresh_token, error;;
         });
     }
     
-    function getMyArtistsPromise(table) { 
+    function getMyArtistsPromise(table, ids) { 
         return new Promise(function(resolve, reject) {
             var toRet = [];
             var entry = [];
@@ -176,7 +190,7 @@ var s, params, access_token, refresh_token, error;;
             var promise = getRelatedArtistsPromise();
             
             promise.then(function(response) {
-                s.getArtists(artistIDs).then(function(data) {                
+                s.getArtists(ids).then(function(data) {                
                     _.each(data.artists, function(artist) {
                         entry = {
                             "followers": artist.followers ? artist.followers.total : 0,
@@ -282,6 +296,7 @@ var s, params, access_token, refresh_token, error;;
                         };
 
                         toRet.push(entry)
+                        artistIDs.push(trackObject.track.artists[0].id);
                     });
                     
                     
@@ -393,5 +408,15 @@ var s, params, access_token, refresh_token, error;;
         }).done(function(data) {
             access_token = data.access_token;
         });
+    }
+    
+    function toggleUIState(showContent) {
+        if (showContent) {
+            $('#spinner').css('display', 'none');
+            $('#content').css('display', 'inline-block');
+        } else {
+            $('#spinner').css('display', 'inline-block');
+            $('#content').css('display', 'none');
+        }
     }
 })();
