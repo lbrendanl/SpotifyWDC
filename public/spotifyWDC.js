@@ -53,6 +53,7 @@ var s, params, access_token, refresh_token, error;;
             $.getJSON("./standard_connections.json")
             .done(function(standard_connections_json) {
                 console.log("finished getting standard connections");
+                console.log("standardConnectionData is \n" + JSON.stringify(standard_connections_json));
                 schemaCallback(scehma_json, standard_connections_json.connections);
             })
             .fail(function(jqxhr, textStatus, error) {
@@ -68,7 +69,7 @@ var s, params, access_token, refresh_token, error;;
         });
     }
 
-    myConnector.getData = function(table, doneCallback) {  
+    myConnector.getData = function(table, doneCallback) {
         console.log("getData called for table " + table.tableInfo.id);
         console.log("setting accessToken from tableau.password");
         var promise;
