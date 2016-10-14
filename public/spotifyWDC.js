@@ -75,7 +75,7 @@ var s, params, access_token, refresh_token, error;;
                 for (i = 1; i <= artistIDs.length; i++) {
                     artistIDsSlice.push(artistIDs[i]);
                     
-                    if ( (i % maxAristIDs) == 0 || i == artistIDs.length)
+                    if ( (i % maxArtistIDs) == 0 || i == artistIDs.length)
                     promises.push(get<getMyArtistsPromise(table, artistIDsSlice));
                     offset+=limit;   
                 }
