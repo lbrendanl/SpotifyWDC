@@ -11,7 +11,7 @@ var express = require('express'); // Express web server framework
 var request = require('request'); // "Request" library
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
-var config = require('./secret_config.js');              // Get our config info (app id and app secret)
+var config = require('./config.js');              // Get our config info (app id and app secret)
 
 var client_id = process.env.CLIENT_ID || config.CLIENT_ID; // Your client sid
 var client_secret = process.env.CLIENT_SECRET || config.CLIENT_SECRET; // Your secret

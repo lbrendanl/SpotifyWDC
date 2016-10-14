@@ -9,6 +9,8 @@ var s, params, access_token, refresh_token, error;;
     var myConnector = tableau.makeConnector();
 
     myConnector.init = function(initCallback){
+        console.log("Initializing Web Data Connector. Phase is " + tableau.phase);
+
         s = new SpotifyWebApi();
 
         params = getHashParams();
@@ -16,47 +18,61 @@ var s, params, access_token, refresh_token, error;;
         access_token = params.access_token,
         refresh_token = params.refresh_token,
         error = params.error;
+
+        console.log("TODO!!! - Remove me - Access token from cookie is " + access_token)
         
         if (error) {
             console.error("There was an error during the authentication");
         }
 
         if (!access_token) {
+            console.log("No access token found in cookies");
             if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
+                console.log("Redirecting to login page");
                 window.location.href = "/login"
             }
         } else {
+            console.log("Access token found!");
             toggleUIState(true);
         }
 
         if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
+            console.log("Setting tableau.password to access_token value from hashParams");
             tableau.password = access_token;
         }
       
+        console.log("Calling initCallback");
         initCallback();
     };
 
     myConnector.getSchema = function(schemaCallback) {
+        console.log("getSchema called. Making request to ./schema.json");
         $.getJSON( "./schema.json" )
         .done(function(scehma_json) {
+            console.log("call to get schema finished. Requesting standard conenctions");
             $.getJSON("./standard_connections.json")
             .done(function(standard_connections_json) {
+                console.log("finished getting standard connections");
                 schemaCallback(scehma_json, standard_connections_json.connections);
             })
             .fail(function(jqxhr, textStatus, error) {
                 var err = textStatus + ", " + error;
                 console.log("Request Failed: " + err);
+                tableau.abortWithError(err);
             });
         })
         .fail(function(jqxhr, textStatus, error) {
             var err = textStatus + ", " + error;
             console.log( "Request Failed: " + err );
+            tableau.abortWithError(err);
         });
     }
 
-    myConnector.getData = function(table, doneCallback) {        
+    myConnector.getData = function(table, doneCallback) {  
+        console.log("getData called for table " + table.tableInfo.id);
+        console.log("setting accessToken from tableau.password");
         var promise;
-        s.setAccessToken(tableau.password); 
+        s.setAccessToken(tableau.password);
         
         var offset = 0, limit = 50, i;
         var promises = [];
@@ -75,7 +91,7 @@ var s, params, access_token, refresh_token, error;;
                 for (i = 1; i <= artistIDs.length; i++) {
                     artistIDsSlice.push(artistIDs[i]);
                     
-                    if ( (i % maxAristIDs) == 0 || i == artistIDs.length)
+                    if ( (i % maxArtistIDs) == 0 || i == artistIDs.length)
                     promises.push(get<getMyArtistsPromise(table, artistIDsSlice));
                     offset+=limit;   
                 }
@@ -103,9 +119,12 @@ var s, params, access_token, refresh_token, error;;
                 break;
         }
 
+        console.log("waiting on promises");
         promise.then(function(response) {
+             console.log("promises have all finished! Done with this table");
              doneCallback();
          }, function(error) {
+             console.log("Error occured waiting for promises. Aborting");
              tableau.abortWithError(error);
              console.error(error);
          });
@@ -116,13 +135,17 @@ var s, params, access_token, refresh_token, error;;
 
     //-------------------------------API Requestors---------------------------
         
-    function getMyTopArtistsPromise(table) { 
+    function getMyTopArtistsPromise(table) {
+        console.log("Getting the top artists promise");
         return new Promise(function(resolve, reject) {
             var toRet = [];
             var entry = [];
 
-            s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {               
-                _.each(data.items, function(artist) {                   
+            console.log("Requesting artist for time range" + tableau.connectionData);
+            s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {  
+                console.log("Received top artists back. Number of rows: " + data.items.length);   
+                _.each(data.items, function(artist) {
+                    console.log("Processing item " + artist.name);              
                     entry = {
                         "followers": artist.followers ? artist.followers.total : 0,
                         "genre1": artist.genres[0] || null,
@@ -138,10 +161,12 @@ var s, params, access_token, refresh_token, error;;
                     toRet.push(entry)
                 });
 
+                console.log("Appending rows. number of rows: " + toRet.length);
                 table.appendRows(toRet);
                 resolve();
 
             }, function(err) {
+                console.log("Error getting top artists");
                 console.error(err);
                 Promise.reject(err);
             });
