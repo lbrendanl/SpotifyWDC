@@ -43,9 +43,6 @@
             { "id": "image_link",  "dataType": "string" },  
             { "id": "name",  "dataType": "string" },
             { "id": "popularity",  "dataType": "string" },
-            { "id": "related_artist1_id",  "dataType": "string" },
-            { "id": "related_artist2_id",  "dataType": "string" },
-            { "id": "related_artist3_id",  "dataType": "string" },
             { "id": "uri",  "dataType": "int" }
         ]
     },

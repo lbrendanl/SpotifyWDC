@@ -1,6 +1,6 @@
 "use strict";
 
-var artistIDs = [];
+var artistIDs;
 
 var s, params, access_token, refresh_token, error;;
 
@@ -62,7 +62,7 @@ var s, params, access_token, refresh_token, error;;
         var promises = [];
         
         var maxArtistIDs = 50;
-        var artistIDsSlice = [];
+        var artistIDsSlice = [], artistIDsArray = [];
         
         switch(table.tableInfo.id) {
             case "topArtists":
@@ -72,11 +72,17 @@ var s, params, access_token, refresh_token, error;;
                 promise = getMyTopTracksPromise(table);
                 break;
             case "artists":
-                for (i = 1; i <= artistIDs.length; i++) {
-                    artistIDsSlice.push(artistIDs[i]);
+                artistIDsArray = Array.from(artistIDs);
+
+                for (i = 0; i < artistIDs.size; i++) {
+                    artistIDsSlice.push(artistIDsArray[i]);
                     
-                    if ( (i % maxArtistIDs) == 0 || i == artistIDs.length)
-                    promises.push(get<getMyArtistsPromise(table, artistIDsSlice));
+                    var entryNumber = i+1;
+                    if ( (entryNumber % maxArtistIDs) == 0 || entryNumber == artistIDs.size) {
+                        promises.push(getMyArtistsPromise(table, artistIDsSlice));
+                        artistIDsSlice = [];
+                    }
+
                     offset+=limit;   
                 }
                 
@@ -186,39 +192,30 @@ var s, params, access_token, refresh_token, error;;
         return new Promise(function(resolve, reject) {
             var toRet = [];
             var entry = [];
-            
-            var promise = getRelatedArtistsPromise();
-            
-            promise.then(function(response) {
-                s.getArtists(ids).then(function(data) {                
-                    _.each(data.artists, function(artist) {
-                        entry = {
-                            "followers": artist.followers ? artist.followers.total : 0,
-                            "genre1": artist.genres[0] || null,
-                            "genre2": artist.genres[1] || null,
-                            "href": artist.href,
-                            "id": artist.id,
-                            "image_link": artist.images[0] ? artist.images[0].url : null,
-                            "name": artist.name,
-                            "popularity":artist.popularity,
-                            "related_artist1_id": response[0] || null,
-                            "related_artist2_id":  response[1] || null,
-                            "related_artist3_id":  response[2] || null,
-                            "uri": artist.uri                        
-                        };
+                        
+            s.getArtists(ids).then(function(data) {                
+                _.each(data.artists, function(artist) {
+                    entry = {
+                        "followers": artist.followers ? artist.followers.total : 0,
+                        "genre1": artist.genres[0] || null,
+                        "genre2": artist.genres[1] || null,
+                        "href": artist.href,
+                        "id": artist.id,
+                        "image_link": artist.images[0] ? artist.images[0].url : null,
+                        "name": artist.name,
+                        "popularity":artist.popularity,
+                        "uri": artist.uri                        
+                    };
 
-                        toRet.push(entry)
-                    });
-
-                    table.appendRows(toRet);
-                    resolve();
-
-                }, function(err) {
-                    console.error(err);
-                    Promise.reject(err);
+                    toRet.push(entry)
                 });
-            }, function(error) {
-                console.error(error);
+
+                table.appendRows(toRet);
+                resolve();
+
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
             });
         });
     }
@@ -259,6 +256,8 @@ var s, params, access_token, refresh_token, error;;
     }
     
     function getMyTracksPromise(table, offset, limit) {
+        artistIDs = new Set();
+
         return new Promise(function(resolve, reject) {
             var toRet = [];
             var entry = [];
@@ -296,7 +295,7 @@ var s, params, access_token, refresh_token, error;;
                         };
 
                         toRet.push(entry)
-                        artistIDs.push(trackObject.track.artists[0].id);
+                        artistIDs.add(trackObject.track.artists[0].id);
                     });
                     
                     
@@ -326,49 +325,6 @@ var s, params, access_token, refresh_token, error;;
             });
         });         
     }
-    
-    function getRelatedArtistsPromise() { 
-        return new Promise(function(resolve, reject) {
-            var toRet = [];
-            var i = 0;
-
-            s.getArtistRelatedArtists(artistIDs[0]).then(function(data) {               
-                for (i = 0; i < 3; i++) {
-                    if (data.artists[i]) {
-                        toRet.push(data.artists[i].id);
-                    }
-                }
-                
-                resolve(toRet);
-
-            }, function(err) {
-                console.error(err);
-                Promise.reject(err);
-            });
-        });
-    }
-    
-    function getArtistsAlbumsPromise() { 
-        return new Promise(function(resolve, reject) {
-            var toRet = [];
-            var i = 0;
-
-            s.getArtistRelatedArtists(artistIDs[0]).then(function(data) {               
-                for (i = 0; i < 3; i++) {
-                    if (data.artists[i]) {
-                        toRet.push(data.artists[i].id);
-                    }
-                }
-                
-                resolve(toRet);
-
-            }, function(err) {
-                console.error(err);
-                Promise.reject(err);
-            });
-        });
-    } 
-   
 
     $(document).ready(function() {  
         $("#getdata").click(function() { // This event fires when a button is clicked
