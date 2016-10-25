@@ -2,7 +2,9 @@
 
 var artistIDs;
 
-var s, params, access_token, refresh_token, error;;
+var s, params, access_token, refresh_token, error;
+
+var albumCount, trackCount;
 
 // Define our Web Data Connector
 (function() {
@@ -31,6 +33,22 @@ var s, params, access_token, refresh_token, error;;
 
         if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
             tableau.password = access_token;
+        } else {
+            s.setAccessToken(tableau.password); 
+
+            // Get some metadata in advance of data gathering
+            // We need track and album counts so we know how many pages of data we'll need
+            s.getMySavedAlbums({limit: 1}).then(function(data) { 
+                albumCount = data.total;
+            }, function(err) {
+                tableau.abortWithError(err);
+            });
+            
+            s.getMySavedTracks({limit: 1}).then(function(data) { 
+                trackCount = data.total;
+            }, function(err) {
+                tableau.abortWithError(err);
+            });
         }
       
         initCallback();
@@ -56,14 +74,7 @@ var s, params, access_token, refresh_token, error;;
 
     myConnector.getData = function(table, doneCallback) {        
         var promise;
-        s.setAccessToken(tableau.password); 
-        
-        var offset = 0, limit = 50, i;
-        var promises = [];
-        
-        var maxArtistIDs = 50;
-        var artistIDsSlice = [], artistIDsArray = [];
-        
+
         switch(table.tableInfo.id) {
             case "topArtists":
                 promise = getMyTopArtistsPromise(table); 
@@ -71,38 +82,19 @@ var s, params, access_token, refresh_token, error;;
             case "topTracks":
                 promise = getMyTopTracksPromise(table);
                 break;
-            case "artists":
-                artistIDsArray = Array.from(artistIDs);
-
-                for (i = 0; i < artistIDs.size; i++) {
-                    artistIDsSlice.push(artistIDsArray[i]);
-                    
-                    var entryNumber = i+1;
-                    if ( (entryNumber % maxArtistIDs) == 0 || entryNumber == artistIDs.size) {
-                        promises.push(getMyArtistsPromise(table, artistIDsSlice));
-                        artistIDsSlice = [];
-                    }
-
-                    offset+=limit;   
+            case "artists":    
+                if (typeof artistIDs === "undefined") {
+                    promise = combineTrackPromises(table, true)
+                                .then(combineArtistPromises(table));
+                } else {
+                    promise = combineArtistPromises(table);
                 }
-                
-                promise = Promise.all(promises);
                 break;
             case "albums":
-                for (i = 0; i < 3; i++) {
-                    promises.push(getMyAlbumsPromise(table, offset, limit));
-                    offset+=limit;   
-                }
-                
-                promise = Promise.all(promises);
+                promise = combineAlbumPromises(table);
                 break;
             case "tracks":
-                for (i = 0; i < 3; i++) {
-                    promises.push(getMyTracksPromise(table, offset, limit));
-                    offset+=limit;   
-                }
-                
-                promise = Promise.all(promises);
+                promise = combineTrackPromises(table);
                 break;
             default:
                 console.error("Unknown table ID");
@@ -246,8 +238,8 @@ var s, params, access_token, refresh_token, error;;
                 });
 
                 table.appendRows(toRet);
-                resolve();
-
+                var hasMoreData = (data.next != null);
+                resolve(hasMoreData);
             }, function(err) {
                 console.error(err);
                 Promise.reject(err);
@@ -324,6 +316,85 @@ var s, params, access_token, refresh_token, error;;
                 Promise.reject(err);
             });
         });         
+    }
+
+    function getArtistIDsPromise(offset, limit) {
+        artistIDs = new Set();
+
+        return new Promise(function(resolve, reject) {
+            s.getMySavedTracks({limit: limit, offset: offset}).then(function(data) {               
+                _.each(data.items, function(trackObject, index) {
+                    artistIDs.add(trackObject.track.artists[0].id);
+                });
+
+                resolve();
+            }, function(err) {
+                console.error(err);
+                Promise.reject(err);
+            });
+        });   
+    }
+
+    function combineAlbumPromises(table) {
+        var offset = 0, limit = 50, i, num_requests;
+        var promises = [];
+
+        albumCount = 10; // Rate limiting countermeasure 
+
+        // This gives us the correct number of paged requests for albums
+        // We put them into one promise all since we don't care about order
+        num_requests = Math.floor(albumCount / limit);
+        for (i = 0; i <= num_requests; i++) {
+            promises.push(getMyAlbumsPromise(table, offset, limit));
+            offset+=limit;   
+        }
+        
+        return Promise.all(promises);
+    }
+
+    function combineTrackPromises(table, onlyGetIDs = false) {
+        var offset = 0, limit = 50, i, num_requests;
+        var promises = [];
+
+        trackCount = 200; // Rate limiting countermeasure
+
+        // This gives us the correct number of paged requests for tracks
+        // We put them into one promise all since we don't care about order
+        num_requests = Math.floor(trackCount / limit);
+        for (i = 0; i <= num_requests; i++) {
+            if (onlyGetIDs) {
+                promises.push(getArtistIDsPromise(offset, limit));
+            } else {
+                promises.push(getMyTracksPromise(table, offset, limit));
+            }
+            
+            offset+=limit;   
+        }
+        
+        return Promise.all(promises);
+    }
+
+    function combineArtistPromises(table) {        
+        var maxArtistIDs = 50;
+        var artistIDsSlice = [], artistIDsArray = [];
+        var promises = [];
+        var i;
+        
+        artistIDs.forEach(function(id) {
+            artistIDsArray.push(id);
+        });
+
+        for (i = 0; i < artistIDs.size; i++) {
+            artistIDsSlice.push(artistIDsArray[i]);
+            
+            var entryNumber = i+1;
+            if ( (entryNumber % maxArtistIDs) == 0 || entryNumber == artistIDs.size) {
+                promises.push(getMyArtistsPromise(table, artistIDsSlice));
+                artistIDsSlice = [];
+            }
+        }
+
+        return Promise.all(promises);         
     }
 
     $(document).ready(function() {  
