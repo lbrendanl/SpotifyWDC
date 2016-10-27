@@ -3,7 +3,7 @@
         "alias": "Top Artists",
         "id": "topArtists",
         "columns": [
-            { "id": "followers", "dataType": "int" /*, "alias": "Number of Followers"*/},
+            { "id": "followers", "dataType": "int"},
             { "id": "genre1", "dataType": "string" },
             { "id": "genre2", "dataType": "string" },
             { "id": "href",  "dataType": "string" },
