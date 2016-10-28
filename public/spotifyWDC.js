@@ -2,7 +2,47 @@
 
 var artistIDs = [];
 
-var s, params, access_token, refresh_token, error;;
+var s, params, access_token, refresh_token, error;
+
+var Authentication = {
+    /**
+     * Obtains parameters from the hash of the URL
+     * @return Object
+     */
+    _getHashParams : function getHashParams() {
+        var hashParams = {};
+        var e, r = /([^&;=]+)=?([^&;]*)/g,
+            q = window.location.hash.substring(1);
+        while (e = r.exec(q)) {
+            hashParams[e[1]] = decodeURIComponent(e[2]);
+        }
+        return hashParams;
+    },
+
+    hasTokens : function() {
+        var result = Authentication.getTokens();
+        return !!result.access_token && !!result.refresh_token;
+    },
+
+    getTokens : function() {
+        var result = {};
+
+        // We've saved off the access & refresh token to tableau.password
+        if (tableau.password) {
+            result = JSON.parse(tableau.password);
+        } else {
+            result = Authentication._getHashParams();
+        }
+
+        return result;
+    },
+
+    getAccessToken : function() {
+        return Authentication.getTokens().access_token;
+    }
+};
+
+
 
 // Define our Web Data Connector
 (function() {
@@ -13,34 +53,25 @@ var s, params, access_token, refresh_token, error;;
 
         s = new SpotifyWebApi();
 
-        params = getHashParams();
-        
-        access_token = params.access_token,
-        refresh_token = params.refresh_token,
-        error = params.error;
-
-        console.log("TODO!!! - Remove me - Access token from cookie is " + access_token)
-        
-        if (error) {
-            console.error("There was an error during the authentication");
-        }
-
-        if (!access_token) {
-            console.log("No access token found in cookies");
+        if (!Authentication.hasTokens()) {
+            console.log("We do not have authentication tokens available");
             if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
                 console.log("Redirecting to login page");
-                window.location.href = "/login"
+                window.location.href = "/login";
+            } else {
+                tableau.abortForAuth("Missing authentication!");
             }
-        } else {
-            console.log("Access token found!");
-            toggleUIState(true);
+
+            // Early return here to avoid changing any other state
+            return;
         }
 
-        if  (tableau.phase == tableau.phaseEnum.interactivePhase || tableau.phase == tableau.phaseEnum.authPhase) {
-            console.log("Setting tableau.password to access_token value from hashParams");
-            tableau.password = access_token;
-        }
-      
+        console.log("Access token found!");
+        toggleUIState(true);
+
+        console.log("Setting tableau.password to access_token and refresh tokens");
+        tableau.password = JSON.stringify(Authentication.getTokens());
+        
         console.log("Calling initCallback");
         initCallback();
     };
@@ -73,7 +104,7 @@ var s, params, access_token, refresh_token, error;;
         console.log("getData called for table " + table.tableInfo.id);
         console.log("setting accessToken from tableau.password");
         var promise;
-        s.setAccessToken(tableau.password);
+        s.setAccessToken(Authentication.getAccessToken());
         
         var offset = 0, limit = 50, i;
         var promises = [];
@@ -135,77 +166,90 @@ var s, params, access_token, refresh_token, error;;
 
 
     //-------------------------------API Requestors---------------------------
+
+function runWithRetry(fn, actionDescription, retryCount) {
+    retryCount = retryCount || 3;
+    console.log("Running with retryCount of " + retryCount);
+
+    function tryRunPromise() {
+        return fn().then(function(data) { return Promise.resolve(data); }, function(err) {
+            console.log("Error encountered. Current retryCount is = " + retryCount);
+            if (retryCount > 0) {
+                console.log("Trying again");
+                retryCount--;
+                return tryRunPromise();
+            } else {
+                console.error("Out of retries, failing the call");
+                tableau.abortWithError("Unable to perform '" + actionDescription + "'");
+                Promise.reject(err);
+            }
+        });
+    };
+
+    return tryRunPromise();
+}
+
+function makeRequestAndProcessRows(description, fn, rowProcessor) {
+    console.log("Making request for " + description);
+    return new Promise(function(resolve, reject) {
+         return runWithRetry(fn, description).then(function(data) {
+             var toRet = [];
+             console.log("Received Results for " + description + ". Number of rows: " + data.items.length);
+             _.each(data.items, function(item) {
+                 toRet.push(rowProcessor(item));
+            });
+
+            resolve(toRet);
+         });
+    });
+}
         
     function getMyTopArtistsPromise(table) {
-        console.log("Getting the top artists promise");
-        return new Promise(function(resolve, reject) {
-            var toRet = [];
-            var entry = [];
-
-            console.log("Requesting artist for time range" + tableau.connectionData);
-            s.getMyTopArtists({time_range: tableau.connectionData}).then(function(data) {  
-                console.log("Received top artists back. Number of rows: " + data.items.length);   
-                _.each(data.items, function(artist) {
-                    console.log("Processing item " + artist.name);              
-                    entry = {
-                        "followers": artist.followers ? artist.followers.total : 0,
-                        "genre1": artist.genres[0] || null,
-                        "genre2": artist.genres[1] || null,
-                        "href": artist.href,
-                        "id": artist.id,
-                        "image_link":artist.images[0] ? artist.images[0].url : null,
-                        "name": artist.name,
-                        "popularity":artist.popularity,
-                        "uri": artist.uri
-                    };
-
-                    toRet.push(entry)
-                });
-
-                console.log("Appending rows. number of rows: " + toRet.length);
+        return makeRequestAndProcessRows(
+            "getMyTopArtists", 
+            s.getMyTopArtists.bind(undefined, {time_range: tableau.connectionData}), 
+            function(artist) {
+                console.log("Processing item " + artist.name);              
+                return {
+                    "followers": artist.followers ? artist.followers.total : 0,
+                    "genre1": artist.genres[0] || null,
+                    "genre2": artist.genres[1] || null,
+                    "href": artist.href,
+                    "id": artist.id,
+                    "image_link":artist.images[0] ? artist.images[0].url : null,
+                    "name": artist.name,
+                    "popularity":artist.popularity,
+                    "uri": artist.uri
+                };
+            }).then(function(toRet) {
                 table.appendRows(toRet);
-                resolve();
-
-            }, function(err) {
-                console.log("Error getting top artists");
-                console.error(err);
-                Promise.reject(err);
+                Promise.resolve();
             });
-        });
     }
 
     function getMyTopTracksPromise(table) { 
-        return new Promise(function(resolve, reject) {
-            var toRet = [];
-            var entry = [];
-
-            s.getMyTopTracks({time_range: tableau.connectionData}).then(function(data) {               
-                _.each(data.items, function(track) {
-                    entry = {
-                        "album_id": track.album.id,
-                        "artist_id": track.artists[0].id,
-                        "artist_name": track.artists[0].name,
-                        "duration_ms": track.duration_ms,
-                        "explicit": track.explicit,
-                        "href": track.href,
-                        "id": track.id,
-                        "name": track.name,
-                        "preview_url": track.preview_url,
-                        "track_number": track.track_number,
-                        "uri": track.uri
-                    };
-
-                    toRet.push(entry)
-                });
-
+        return makeRequestAndProcessRows(
+            "getMyTopTracks", 
+            s.getMyTopTracks.bind(undefined, {time_range: tableau.connectionData}), 
+            function(track) {
+                console.log("Processing track " + track.name);              
+                return {
+                    "album_id": track.album.id,
+                    "artist_id": track.artists[0].id,
+                    "artist_name": track.artists[0].name,
+                    "duration_ms": track.duration_ms,
+                    "explicit": track.explicit,
+                    "href": track.href,
+                    "id": track.id,
+                    "name": track.name,
+                    "preview_url": track.preview_url,
+                    "track_number": track.track_number,
+                    "uri": track.uri
+                };
+            }).then(function(toRet) {
                 table.appendRows(toRet);
-                resolve();
-
-            }, function(err) {
-                console.error(err);
-                Promise.reject(err);
+                Promise.resolve();
             });
-        });
     }
     
     function getMyArtistsPromise(table, ids) { 
@@ -402,19 +446,6 @@ var s, params, access_token, refresh_token, error;;
         });
     });
 
-    /**
-     * Obtains parameters from the hash of the URL
-     * @return Object
-     */
-    function getHashParams() {
-        var hashParams = {};
-        var e, r = /([^&;=]+)=?([^&;]*)/g,
-            q = window.location.hash.substring(1);
-        while (e = r.exec(q)) {
-            hashParams[e[1]] = decodeURIComponent(e[2]);
-        }
-        return hashParams;
-    }
 
 
     function setupConnector() {
