@@ -3,7 +3,7 @@
         "alias": "Top Artists",
         "id": "topArtists",
         "columns": [
-            { "id": "followers", "dataType": "int" },
+            { "id": "followers", "dataType": "int"},
             { "id": "genre1", "dataType": "string" },
             { "id": "genre2", "dataType": "string" },
             { "id": "href",  "dataType": "string" },
@@ -43,9 +43,6 @@
             { "id": "image_link",  "dataType": "string" },  
             { "id": "name",  "dataType": "string" },
             { "id": "popularity",  "dataType": "string" },
-            { "id": "related_artist1_id",  "dataType": "string" },
-            { "id": "related_artist2_id",  "dataType": "string" },
-            { "id": "related_artist3_id",  "dataType": "string" },
             { "id": "uri",  "dataType": "int" }
         ]
     },
@@ -83,7 +80,7 @@
             { "id": "preview_url",  "dataType": "string" },
             { "id": "track_number",  "dataType": "int" },
             { "id": "uri",  "dataType": "string" },
-            { "id": "danceability", "dataType": "datetime" },
+            { "id": "danceability", "dataType": "float"},
             { "id": "energy", "dataType": "float" },
             { "id": "key",  "dataType": "int" },
             { "id": "loudness",  "dataType": "float" },
