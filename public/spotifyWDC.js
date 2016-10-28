@@ -39,6 +39,19 @@ var Authentication = {
 
     getAccessToken : function() {
         return Authentication.getTokens().access_token;
+    },
+
+    // Note: Refresh tokens are valid forever, just need to get a new access token.
+    // Refresh tokens can me manually revoked but won"t expire
+    refreshToken: function(doneHandler) {
+        return $.ajax({
+            url: "/refresh_token",
+            data: {
+                "refresh_token": refresh_token
+            }
+        }).done(function(data) {
+            doneHandler(data.access_token);
+        });
     }
 };
 
@@ -50,8 +63,6 @@ var Authentication = {
 
     myConnector.init = function(initCallback){
         console.log("Initializing Web Data Connector. Phase is " + tableau.phase);
-
-        s = new SpotifyWebApi();
 
         if (!Authentication.hasTokens()) {
             console.log("We do not have authentication tokens available");
@@ -74,6 +85,11 @@ var Authentication = {
         
         console.log("Calling initCallback");
         initCallback();
+
+        if (tableau.phase === tableau.phaseEnum.authPhase) {
+            // Immediately submit if we are running in the auth phase
+            tableau.submit();
+        }
     };
 
     myConnector.getSchema = function(schemaCallback) {
@@ -103,7 +119,8 @@ var Authentication = {
     myConnector.getData = function(table, doneCallback) {
         console.log("getData called for table " + table.tableInfo.id);
         console.log("setting accessToken from tableau.password");
-        var promise;
+        var promise;    
+        s = new SpotifyWebApi();
         s.setAccessToken(Authentication.getAccessToken());
         
         var offset = 0, limit = 50, i;
@@ -438,34 +455,18 @@ function makeRequestAndProcessRows(description, fn, rowProcessor) {
             });
         });
     } 
-   
-
+   +
     $(document).ready(function() {  
         $("#getdata").click(function() { // This event fires when a button is clicked
             setupConnector();
         });
     });
 
-
-
     function setupConnector() {
         tableau.connectionName = "Spotify Connector";
         tableau.connectionData = document.querySelector('input[name="term"]:checked').value;
         tableau.submit();
     };
-
-    // Note: Refresh tokens are valid forever, just need to get a new access token.
-    // Refresh tokens can me manually revoked but won"t expire
-    function refreshToken() {
-        $.ajax({
-            url: "/refresh_token",
-            data: {
-                "refresh_token": refresh_token
-            }
-        }).done(function(data) {
-            access_token = data.access_token;
-        });
-    }
     
     function toggleUIState(showContent) {
         if (showContent) {
