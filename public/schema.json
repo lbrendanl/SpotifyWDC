@@ -11,7 +11,7 @@
                 { "id": "id",  "dataType": "string" },
                 { "id": "image_link",  "dataType": "string" },
                 { "id": "name",  "dataType": "string" },
-                { "id": "popularity",  "dataType": "string" },
+                { "id": "popularity",  "dataType": "int" },
                 { "id": "uri",  "dataType": "string" }
             ]
         },
