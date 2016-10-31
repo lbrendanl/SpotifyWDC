@@ -83,7 +83,7 @@
                 { "id": "uri",  "dataType": "string" },
                 { "id": "danceability", "dataType": "float"},
                 { "id": "energy", "dataType": "float" },
-                { "id": "key",  "dataType": "int" },
+                { "id": "key",  "dataType": "string" },
                 { "id": "loudness",  "dataType": "float" },
                 { "id": "mode",  "dataType": "int" },
                 { "id": "speechiness",  "dataType": "float" },
