@@ -78,7 +78,7 @@ var Authentication = {
 
         var s = new SpotifyWebApi();
         s.setAccessToken(Authentication.getAccessToken());
-        spotifyRequestor = new SpotifyRequestor(s, tableau.connectionData);
+        spotifyRequestor = new SpotifyRequestor(s, tableau.connectionData, tableau.reportProgress);
         
         console.log("Calling initCallback");
         initCallback();

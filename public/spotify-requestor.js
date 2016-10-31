@@ -1,9 +1,11 @@
-function SpotifyRequestor(spotifyApi, timeRange) {
+function SpotifyRequestor(spotifyApi, timeRange, reportProgress) {
   this.s = spotifyApi;
   this.timeRange = timeRange;
   this.defaultPageSize = 50;
-  this.maxResults = 500;
+  this.maxResults = 1000;
+  this.reportProgress = reportProgress || function() {};
 }
+
 
 SpotifyRequestor.prototype._runWithRetry = function(fn, actionDescription, retryCount) {
     retryCount = retryCount || 3;
@@ -32,11 +34,8 @@ SpotifyRequestor.prototype._makeRequestAndProcessRows = function(description, fn
     rowAccessor = rowAccessor || function(data) { return data.items; };
     return new Promise(function(resolve, reject) {
          return this._runWithRetry(fn, description).then(function(data) {
-             var toRet = [];
              console.log("Received Results for " + description + ". Number of rows: " + rowAccessor(data).length);
-             _.each(rowAccessor(data), function(item) {
-                 toRet.push(rowProcessor(item));
-            });
+             var toRet = rowAccessor(data).map(rowProcessor);
 
             // Send back some paging information to the caller
             var paging = {
@@ -59,6 +58,9 @@ SpotifyRequestor.prototype._makeRequestAndProcessRowsWithPaging = function(descr
         rowAccessor).then(function(result) {
             var nextOffset = result.paging.offset + this.defaultPageSize;
             allRows = allRows.concat(result.rows);
+            
+            var totalRows = result.paging.total < this.maxResults ? result.paging.total : this.maxResults;
+            this.reportProgress("Received data for " + description + ". Retrieved " + result.paging.offset + " of " + totalRows);
             if (nextOffset < result.paging.total && nextOffset < this.maxResults) {
                 return getPage(this.defaultPageSize, nextOffset);
             } else {
