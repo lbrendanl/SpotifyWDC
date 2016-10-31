@@ -361,7 +361,7 @@ SpotifyRequestor.prototype.getTrackFeatures = function(ids) {
                 "energy": audioFeature.energy,
                 "key": keyLookup[audioFeature.key],
                 "loudness": audioFeature.loudness,
-                "mode": audioFeature.mode,
+                "mode": audioFeature.mode == 1 ? "Major" : "Minor",
                 "speechiness": audioFeature.speechiness,
                 "acousticness": audioFeature.acousticness,
                 "instrumentalness": audioFeature.instrumentalness,

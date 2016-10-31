@@ -85,14 +85,14 @@
                 { "id": "energy", "dataType": "float" },
                 { "id": "key",  "dataType": "string" },
                 { "id": "loudness",  "dataType": "float" },
-                { "id": "mode",  "dataType": "int" },
+                { "id": "mode",  "dataType": "string" },
                 { "id": "speechiness",  "dataType": "float" },
                 { "id": "acousticness",  "dataType": "float" },
                 { "id": "instrumentalness",  "dataType": "float" },
                 { "id": "liveness", "dataType": "float" },
                 { "id": "valence",  "dataType": "float" },
                 { "id": "tempo",  "dataType": "float" },
-                { "id": "time_signature",  "dataType": "int" }
+                { "id": "time_signature",  "dataType": "string" }
             ]
         }
     ],
