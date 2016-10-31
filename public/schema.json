@@ -81,7 +81,7 @@
                 { "id": "preview_url",  "dataType": "string" },
                 { "id": "track_number",  "dataType": "int" },
                 { "id": "uri",  "dataType": "string" },
-                { "id": "danceability", "dataType": "float", "defaultFormat": {"numberFormat": "percentage"}},
+                { "id": "danceability", "dataType": "float"},
                 { "id": "energy", "dataType": "float" },
                 { "id": "key",  "dataType": "int" },
                 { "id": "loudness",  "dataType": "float" },
@@ -102,6 +102,8 @@
             "tables" : [
                 { "id"    : "artists",
                 "alias" : "Artists"     },
+                { "id"    : "albums",
+                "alias" : "Albums"    },
                 { "id"    : "tracks",
                 "alias" : "Tracks"    }
             ],
@@ -112,8 +114,18 @@
                     "columnId"   : "id"
                 },
                 "right" : {
-                    "tableAlias" : "Tracks",
+                    "tableAlias" : "Albums",
                     "columnId"   : "artist_id"
+                },
+                "joinType" : "inner"
+                },{
+                "left" : {
+                    "tableAlias" : "Albums",
+                    "columnId"   : "id"
+                },
+                "right" : {
+                    "tableAlias" : "Tracks",
+                    "columnId"   : "album_id"
                 },
                 "joinType" : "inner"
                 }
