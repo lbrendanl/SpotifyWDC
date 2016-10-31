@@ -78,7 +78,7 @@ var Authentication = {
 
         var s = new SpotifyWebApi();
         s.setAccessToken(Authentication.getAccessToken());
-        spotifyRequestor = new SpotifyRequestor(s, tableau.connectionData);
+        spotifyRequestor = new SpotifyRequestor(s, tableau.connectionData, tableau.reportProgress);
         
         console.log("Calling initCallback");
         initCallback();
@@ -142,6 +142,7 @@ var Authentication = {
     function setupConnector() {
         tableau.connectionName = "Spotify Connector";
         tableau.connectionData = document.querySelector('input[name="term"]:checked').value;
+        tableau.authType = tableau.authTypeEnum.custom;
         tableau.submit();
     };
     

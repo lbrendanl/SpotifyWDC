@@ -6,5 +6,5 @@ module.exports = {
  'PORT': 3000,
  'CLIENT_ID': 'f0551d1b48d241b9a21d6264c828fd7b',
  'CLIENT_SECRET': '7931169be79e44a19a4d21e449e84a74',
- 'REDIRECT_URI': 'http://sdesmond5:3000/callback'
+ 'REDIRECT_URI': 'http://localhost:3000/callback'
 };

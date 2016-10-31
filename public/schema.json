@@ -98,38 +98,45 @@
     ],
     "standardConnections" : [
         {
-            "alias" : "All Data",
-            "tables" : [
-                { "id"    : "artists",
-                "alias" : "Artists"     },
-                { "id"    : "albums",
-                "alias" : "Albums"    },
-                { "id"    : "tracks",
-                "alias" : "Tracks"    }
-            ],
-            "joins" : [
+            "alias":"All Data",
+            "tables":[
                 {
-                "left" : {
-                    "tableAlias" : "Artists",
-                    "columnId"   : "id"
+                    "id":"artists",
+                    "alias":"Artists"
                 },
-                "right" : {
-                    "tableAlias" : "Albums",
-                    "columnId"   : "artist_id"
+                {
+                    "id":"albums",
+                    "alias":"Albums"
                 },
-                "joinType" : "inner"
-                },{
-                "left" : {
-                    "tableAlias" : "Albums",
-                    "columnId"   : "id"
+                {
+                    "id":"tracks",
+                    "alias":"Tracks"
+                }
+            ],
+            "joins":[
+                {
+                    "left":{
+                        "tableAlias":"Artists",
+                        "columnId":"id"
+                    },
+                    "right":{
+                        "tableAlias":"Albums",
+                        "columnId":"artist_id"
+                    },
+                    "joinType":"inner"
                 },
-                "right" : {
-                    "tableAlias" : "Tracks",
-                    "columnId"   : "album_id"
-                },
-                "joinType" : "inner"
+                {
+                    "left":{
+                        "tableAlias":"Albums",
+                        "columnId":"id"
+                    },
+                    "right":{
+                        "tableAlias":"Tracks",
+                        "columnId":"album_id"
+                    },
+                    "joinType":"inner"
                 }
             ]
-            }
+        }
     ]
 }
