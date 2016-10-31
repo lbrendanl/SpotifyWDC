@@ -342,11 +342,24 @@ SpotifyRequestor.prototype.getTrackFeatures = function(ids) {
 
     return this._getCollectionFromIds(ids, 100, "getTrackFeatures",
         this.s.getAudioFeaturesForTracks.bind(this), 
-        function(audioFeature) {      
+        function(audioFeature) {
+            var keyLookup = {
+                0 : "C",
+                1 : "C♯",
+                2 : "D",
+                3 : "E♭",
+                4 : "E",
+                5 : "F",
+                6 : "F♯",
+                7 : "G",
+                8 : "A♭",
+                9 : "A",
+                10 : "A♯",
+                11 : "B" };
             return {
                 "danceability": audioFeature.danceability,
                 "energy": audioFeature.energy,
-                "key": audioFeature.key,
+                "key": keyLookup[audioFeature.key],
                 "loudness": audioFeature.loudness,
                 "mode": audioFeature.mode,
                 "speechiness": audioFeature.speechiness,
