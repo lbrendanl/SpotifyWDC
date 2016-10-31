@@ -142,6 +142,7 @@ var Authentication = {
     function setupConnector() {
         tableau.connectionName = "Spotify Connector";
         tableau.connectionData = document.querySelector('input[name="term"]:checked').value;
+        tableau.authType = tableau.authTypeEnum.custom;
         tableau.submit();
     };
     
