@@ -18,19 +18,12 @@ var client_secret = process.env.CLIENT_SECRET || config.CLIENT_SECRET; // Your s
 var redirect_uri = process.env.REDIRECT_URI || config.REDIRECT_URI; // Your redirect uri
 var port = process.env.PORT || config.PORT;
 
-var stateKey = 'spotify_auth_state';
-
 var app = express();
 
 app.use(express.static(__dirname + '/public'))
    .use(cookieParser());
 
 app.get('/login', function(req, res) {
-
-  var state = generateRandomString(16);
-
-  res.cookie(stateKey, state);
-
   // your application requests authorization
   var scope = 'user-read-private user-read-email user-top-read playlist-read-private user-library-read';
   res.redirect('https://accounts.spotify.com/authorize?' +
@@ -38,8 +31,7 @@ app.get('/login', function(req, res) {
       response_type: 'code',
       client_id: client_id,
       scope: scope,
-      redirect_uri: redirect_uri,
-      state: state
+      redirect_uri: redirect_uri
     }));
 });
 
@@ -67,8 +59,8 @@ app.get('/callback', function(req, res) {
       var access_token = body.access_token;
       var refresh_token = body.refresh_token;
 
-      console.log("Redirecting back to start page");
       // Pass the token to the browser to make requests from there
+      console.log("Redirecting back to start page");
       res.redirect('/#' +
         querystring.stringify({
           access_token: access_token,
@@ -84,7 +76,6 @@ app.get('/callback', function(req, res) {
 });
 
 app.get('/refresh_token', function(req, res) {
-
   // requesting access token from refresh token
   var refresh_token = req.query.refresh_token;
   var authOptions = {

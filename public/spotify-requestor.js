@@ -1,7 +1,7 @@
 function SpotifyRequestor(spotifyApi, timeRange) {
   this.s = spotifyApi;
   this.timeRange = timeRange;
-  this.defaultPageSize = 10;
+  this.defaultPageSize = 50;
   this.maxResults = 500;
 }
 
@@ -59,15 +59,56 @@ SpotifyRequestor.prototype._makeRequestAndProcessRowsWithPaging = function(descr
         rowAccessor).then(function(result) {
             var nextOffset = result.paging.offset + this.defaultPageSize;
             allRows = allRows.concat(result.rows);
-            if (nextOffset < result.paging.total) {
+            if (nextOffset < result.paging.total && nextOffset < this.maxResults) {
                 return getPage(this.defaultPageSize, nextOffset);
             } else {
+                console.log("Done paging through results. Number of results was " + allRows.length)
                 return Promise.resolve(allRows);
             }
         }.bind(this));
     }.bind(this);
 
     return getPage(this.defaultPageSize, 0);
+}
+
+SpotifyRequestor.prototype._getCollectionFromIds = function(ids, blockSize, description, fn, rowProcessor, rowAccessor) {
+    // No caching for track features.
+    // Request blockSize ids at a time
+    var idBlocks = [];
+    var currBlock = undefined;
+    for(var i = 0; i < ids.length; i++) {
+        if (!currBlock || currBlock.length == blockSize) {
+            currBlock = new Array();
+            idBlocks.push(currBlock);
+        }
+
+        currBlock.push(ids[i]);
+    }
+
+    // Allocate a results array which will will insert all of our results into. This must return
+    // The results in the order which ids were passed in
+    var resultBlocks = new Array(idBlocks.length);
+
+    var promises = [];
+    for (var i = 0; i < idBlocks.length; i++) {
+        var insertValues = function(index, result) {
+            // Place these values in their appropriate spot
+            resultBlocks[index] = result.rows;
+        }.bind(this, i);
+
+        promises.push(this._makeRequestAndProcessRows(
+            description,
+            fn.bind(this, idBlocks[i]), 
+            rowProcessor,
+            rowAccessor)
+            .then(insertValues)
+        );
+    }
+
+    return Promise.all(promises).then(function() { 
+        var merged = [].concat.apply([], resultBlocks);
+        return merged;
+    });
 }
 
 SpotifyRequestor.prototype.getMyTopArtists = function() {
@@ -95,7 +136,7 @@ SpotifyRequestor.prototype.getMyTopArtists = function() {
             // Cache this off in case we need it later
             this._myTopArtists = result.rows;
             return Promise.resolve(result.rows);
-        });
+        }.bind(this));
 }
 
 SpotifyRequestor.prototype.getMyTopTracks = function() {
@@ -155,7 +196,7 @@ SpotifyRequestor.prototype.getMySavedAlbums = function() {
         }).then(function(data) {
             this._mySavedAlbums = data;
             return data;
-        });
+        }.bind(this));
 }
 
 SpotifyRequestor.prototype.getMySavedTracks = function() {
@@ -199,58 +240,71 @@ SpotifyRequestor.prototype.getMySavedTracks = function() {
     }.bind(this));
 }
 
-SpotifyRequestor.prototype.getTrackFeatures = function(ids) {
-    // No caching for track features.
-    // Spotify will let us request features for up to 100 tracks at a time so split the ids up
-    var idBlocks = [];
-    var currBlock = undefined;
-    var blockSize = 100;
-    for(var i = 0; i < ids.length; i++) {
-        if (!currBlock || currBlock.length == blockSize) {
-            currBlock = new Array();
-            idBlocks.push(currBlock);
+SpotifyRequestor.prototype.getMySavedArtists = function() {
+    if (this._mySavedArtists) {
+        return Promise.resolve(this._mySavedArtists);
+    }
+
+    // To get artists, we first must get all the user's albums and tracks since
+    // there isn't an endpoint for getting artists
+    var allArtists = [];
+    var appendArtists = function(rows) {
+        var artists = rows.map(function(row) { return row.artist_id; } );
+        for(var i in artists) {
+            if (allArtists.indexOf(artists[i]) == -1) {
+                allArtists.push(artists[i]);
+            }
         }
+    };
 
-        currBlock.push(ids[i]);
-    }
+    return Promise.all([
+        spotifyRequestor.getMySavedAlbums().then(appendArtists),
+        spotifyRequestor.getMySavedTracks().then(appendArtists)]).then(function() {
+            return this.getArtists(allArtists).then(function(finalResults) {
+                this._mySavedArtists = finalResults;
+                return finalResults;
+            }.bind(this));
+        }.bind(this));
+}
 
-    // Allocate a results array which will will insert all of our results into. This must return
-    // The results in the order which ids were passed in
-    var results = new Array(ids.length);
-    var resultBlocks = new Array(idBlocks.length);
+SpotifyRequestor.prototype.getArtists = function(ids) {
+    // Spotify only lets us request 50 artists at a time
+    return this._getCollectionFromIds(ids, 50, "getArtists",
+        this.s.getArtists.bind(this), 
+        function(artist) {      
+            return {
+                "followers": artist.followers ? artist.followers.total : 0,
+                "genre1": artist.genres[0] || null,
+                "genre2": artist.genres[1] || null,
+                "href": artist.href,
+                "id": artist.id,
+                "image_link": artist.images[0] ? artist.images[0].url : null,
+                "name": artist.name,
+                "popularity":artist.popularity,
+                "uri": artist.uri                        
+            };
+        },
+        function(data) { return data.artists; });
+}
 
-    var promises = [];
-    for (var i = 0; i < idBlocks.length; i++) {
-        var insertValues = function(index, result) {
-            // Place these values in their appropriate spot
-            resultBlocks[index] = result.rows;
-        }.bind(this, i);
-
-        promises.push(this._makeRequestAndProcessRows(
-            "getTrackFeatures",
-            this.s.getAudioFeaturesForTracks.bind(this, idBlocks[i]), 
-            function(audioFeature) {      
-                return {
-                    "danceability": audioFeature.danceability,
-                    "energy": audioFeature.energy,
-                    "key": audioFeature.key,
-                    "loudness": audioFeature.loudness,
-                    "mode": audioFeature.mode,
-                    "speechiness": audioFeature.speechiness,
-                    "acousticness": audioFeature.acousticness,
-                    "instrumentalness": audioFeature.instrumentalness,
-                    "liveness": audioFeature.liveness,
-                    "valence": audioFeature.valence,
-                    "tempo": audioFeature.tempo,
-                    "time_signature": audioFeature.time_signature
-                }
-            }, function(data) {return data.audio_features; })
-            .then(insertValues)
-        );
-    }
-
-    return Promise.all(promises).then(function() { 
-        var merged = [].concat.apply([], resultBlocks);
-        return merged;
-    });
+SpotifyRequestor.prototype.getTrackFeatures = function(ids) {
+    return this._getCollectionFromIds(ids, 100, "getTrackFeatures",
+        this.s.getAudioFeaturesForTracks.bind(this), 
+        function(audioFeature) {      
+            return {
+                "danceability": audioFeature.danceability,
+                "energy": audioFeature.energy,
+                "key": audioFeature.key,
+                "loudness": audioFeature.loudness,
+                "mode": audioFeature.mode,
+                "speechiness": audioFeature.speechiness,
+                "acousticness": audioFeature.acousticness,
+                "instrumentalness": audioFeature.instrumentalness,
+                "liveness": audioFeature.liveness,
+                "valence": audioFeature.valence,
+                "tempo": audioFeature.tempo,
+                "time_signature": audioFeature.time_signature
+            }
+        },
+        function(data) { return data.audio_features; });
 }
