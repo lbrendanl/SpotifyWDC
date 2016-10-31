@@ -1,26 +1,32 @@
+// This class abstracts away most of the interaction with Spotify's API. All methods return promises
+// which will be resolved once the requested resource has been returned from Spotify
 function SpotifyRequestor(spotifyApi, timeRange, reportProgress) {
   this.s = spotifyApi;
   this.timeRange = timeRange;
+  this.reportProgress = reportProgress || function() {};
   this.defaultPageSize = 50;
   this.maxResults = 1000;
-  this.reportProgress = reportProgress || function() {};
+  this.retryCount = 3;
 }
 
-
+// Helper function which will run fn more than once if the promise is rejected during execution.
+// fn must be a function which returns a promise
 SpotifyRequestor.prototype._runWithRetry = function(fn, actionDescription, retryCount) {
-    retryCount = retryCount || 3;
+    retryCount = retryCount || this.retryCount;
     console.log("Running with retryCount of " + retryCount);
 
     function tryRunPromise() {
-        return fn().then(function(data) { return Promise.resolve(data); }, function(err) {
+        return fn().then(function(data) {
+            console.log("Promise '" + actionDescription + "' succeeded execution!");
+            return Promise.resolve(data); 
+        }, function(err) {
             console.log("Error encountered. Current retryCount is = " + retryCount);
             if (retryCount > 0) {
-                console.log("Trying again");
+                console.log(actionDescription + " failed. Trying again.");
                 retryCount--;
                 return tryRunPromise();
             } else {
-                console.error("Out of retries, failing the call");
-                tableau.abortWithError("Unable to perform '" + actionDescription + "'");
+                console.error("Out of retries, failing the call: " + actionDescription);
                 Promise.reject(err);
             }
         });
@@ -29,10 +35,16 @@ SpotifyRequestor.prototype._runWithRetry = function(fn, actionDescription, retry
     return tryRunPromise();
 }
 
+// Helper function to make a request which returns a promise and process the data which the call returns.
+// fn must be a function which returns a promise. rowProcessor will be called once for every row of data
+// returned by the resolved fn promise. rowAccessor is an optional parameter to be called when fn resolves
+// to access the array of objects for rowProcessor to handle
 SpotifyRequestor.prototype._makeRequestAndProcessRows = function(description, fn, rowProcessor, rowAccessor) {
     console.log("Making request for " + description);
     rowAccessor = rowAccessor || function(data) { return data.items; };
     return new Promise(function(resolve, reject) {
+
+         // Run this request using the retry logic we have
          return this._runWithRetry(fn, description).then(function(data) {
              console.log("Received Results for " + description + ". Number of rows: " + rowAccessor(data).length);
              var toRet = rowAccessor(data).map(rowProcessor);
@@ -48,33 +60,46 @@ SpotifyRequestor.prototype._makeRequestAndProcessRows = function(description, fn
     }.bind(this));
 }
 
+// Helper function for paging through multiple requests. Takes the same parameters as _makeRequestAndProcessRows, but
+// uses the returned paging information to make another request. the paging information will be applied to fn when
+// it is called for each new page
 SpotifyRequestor.prototype._makeRequestAndProcessRowsWithPaging = function(description, fn, rowProcessor, rowAccessor) {
+    console.log("Making request with paging for " + description);
     var allRows = [];
+
+    // Define a getPage helper function for getting a single page of data
     var getPage = function(limit, offset) {
+        console.log("Getting a page of data with limit=" + limit + " and offset=" + offset);
         return this._makeRequestAndProcessRows(
-        description, 
-        fn.bind(this, {limit: limit, offset: offset}), 
-        rowProcessor,
-        rowAccessor).then(function(result) {
-            var nextOffset = result.paging.offset + this.defaultPageSize;
-            allRows = allRows.concat(result.rows);
-            
-            var totalRows = result.paging.total < this.maxResults ? result.paging.total : this.maxResults;
-            this.reportProgress("Received data for " + description + ". Retrieved " + result.paging.offset + " of " + totalRows);
-            if (nextOffset < result.paging.total && nextOffset < this.maxResults) {
-                return getPage(this.defaultPageSize, nextOffset);
-            } else {
-                console.log("Done paging through results. Number of results was " + allRows.length)
-                return Promise.resolve(allRows);
-            }
+            description, 
+            fn.bind(this, {limit: limit, offset: offset}), // bind the limit and offset in here
+            rowProcessor,
+            rowAccessor).then(function(result) {
+                var nextOffset = result.paging.offset + this.defaultPageSize;
+                allRows = allRows.concat(result.rows);
+                var totalRows = result.paging.total < this.maxResults ? result.paging.total : this.maxResults;
+                
+                console.log("Received a page of data for " + description + ". nextOffset is "  + nextOffset + ". totalRows is " + result.paging.total + ". maxResults is " + this.maxResults);
+
+                // Report our progress to the progress reporting function which was passed in
+                this.reportProgress("Received data for " + description + ". Retrieved " + result.paging.offset + " of " + totalRows);
+                if (nextOffset < result.paging.total && nextOffset < this.maxResults) {
+                    return getPage(this.defaultPageSize, nextOffset);
+                } else {
+                    console.log("Done paging through results. Number of results was " + allRows.length)
+                    return Promise.resolve(allRows);
+                }
         }.bind(this));
     }.bind(this);
 
     return getPage(this.defaultPageSize, 0);
 }
 
+// Helper function for calling a fn which takes in an array of ids. If the call has a limited blockSize, the requests
+// will be broken up. The results will be recombined and returned in the same order as ids
 SpotifyRequestor.prototype._getCollectionFromIds = function(ids, blockSize, description, fn, rowProcessor, rowAccessor) {
-    // No caching for track features.
+    console.log("Retrieving a collection for " + description + ". " + ids.length + " ids are requested with blockSize " + blockSize);
+
     // Request blockSize ids at a time
     var idBlocks = [];
     var currBlock = undefined;
@@ -87,17 +112,21 @@ SpotifyRequestor.prototype._getCollectionFromIds = function(ids, blockSize, desc
         currBlock.push(ids[i]);
     }
 
+    console.log("Created " + idBlocks.length + " blocks");
+
     // Allocate a results array which will will insert all of our results into. This must return
     // The results in the order which ids were passed in
     var resultBlocks = new Array(idBlocks.length);
 
     var promises = [];
     for (var i = 0; i < idBlocks.length; i++) {
+        // This function will get called when each promise finishes
         var insertValues = function(index, result) {
             // Place these values in their appropriate spot
             resultBlocks[index] = result.rows;
         }.bind(this, i);
 
+        // Create a promise for each block
         promises.push(this._makeRequestAndProcessRows(
             description,
             fn.bind(this, idBlocks[i]), 
@@ -107,14 +136,18 @@ SpotifyRequestor.prototype._getCollectionFromIds = function(ids, blockSize, desc
         );
     }
 
-    return Promise.all(promises).then(function() { 
+    // Once all the promises have finished, combine the resultBlocks into a single array
+    return Promise.all(promises).then(function() {
+        console.log("All requests have finished. Combining arrays together for " + description);
         var merged = [].concat.apply([], resultBlocks);
         return merged;
     });
 }
 
+// Gets the user's top artists for the given time range
 SpotifyRequestor.prototype.getMyTopArtists = function() {
     if (this._myTopArtists) {
+        console.log("Returning cached list of top artists");
         return Promise.resolve(this._myTopArtists);
     }
 
@@ -136,13 +169,16 @@ SpotifyRequestor.prototype.getMyTopArtists = function() {
             };
         }).then(function(result) {
             // Cache this off in case we need it later
+            console.log("Finished retrieving top artists");
             this._myTopArtists = result.rows;
             return Promise.resolve(result.rows);
         }.bind(this));
 }
 
+// Gets the user's top tracks for the given time range
 SpotifyRequestor.prototype.getMyTopTracks = function() {
     if (this._myTopTracks) {
+        console.log("Returning cached list of top tracks");
         return Promise.resolve(this._myTopTracks);
     }
 
@@ -166,13 +202,16 @@ SpotifyRequestor.prototype.getMyTopTracks = function() {
             };
         }).then(function(result) {
             // Cache this off in case we need it later
+            console.log("Finished retrieving top tracks");
             this._myTopTracks = result.rows;
             return Promise.resolve(result.rows);
         }.bind(this));
 }
 
+// Gets the saved albums for this user
 SpotifyRequestor.prototype.getMySavedAlbums = function() {
     if (this._mySavedAlbums) {
+        console.log("Returning cached list of saved albums");
         return Promise.resolve(this._mySavedAlbums);
     }
 
@@ -201,8 +240,10 @@ SpotifyRequestor.prototype.getMySavedAlbums = function() {
         }.bind(this));
 }
 
+// Gets the saved tracks for this user as well as some metrics for each track
 SpotifyRequestor.prototype.getMySavedTracks = function() {
     if (this._mySavedTracks) {
+        console.log("Returning cached list of saved tracks");
         return Promise.resolve(this._mySavedTracks);
     }
 
@@ -242,8 +283,10 @@ SpotifyRequestor.prototype.getMySavedTracks = function() {
     }.bind(this));
 }
 
+// Gets the saved artists for the user
 SpotifyRequestor.prototype.getMySavedArtists = function() {
     if (this._mySavedArtists) {
+        console.log("Returning cached list of saved artists");
         return Promise.resolve(this._mySavedArtists);
     }
 
@@ -262,6 +305,7 @@ SpotifyRequestor.prototype.getMySavedArtists = function() {
     return Promise.all([
         spotifyRequestor.getMySavedAlbums().then(appendArtists),
         spotifyRequestor.getMySavedTracks().then(appendArtists)]).then(function() {
+            console.log("Finished finding artists in albums and tracks. Number of artists=" + allArtists.length);
             return this.getArtists(allArtists).then(function(finalResults) {
                 this._mySavedArtists = finalResults;
                 return finalResults;
@@ -269,7 +313,10 @@ SpotifyRequestor.prototype.getMySavedArtists = function() {
         }.bind(this));
 }
 
+// Gets artists by their ids
 SpotifyRequestor.prototype.getArtists = function(ids) {
+    // TODO - cache the artists we have already retrieved by their id
+
     // Spotify only lets us request 50 artists at a time
     return this._getCollectionFromIds(ids, 50, "getArtists",
         this.s.getArtists.bind(this), 
@@ -289,7 +336,10 @@ SpotifyRequestor.prototype.getArtists = function(ids) {
         function(data) { return data.artists; });
 }
 
+// Gets track features by their ids
 SpotifyRequestor.prototype.getTrackFeatures = function(ids) {
+    // TODO - cache the tracks we have already retrieved by their id
+
     return this._getCollectionFromIds(ids, 100, "getTrackFeatures",
         this.s.getAudioFeaturesForTracks.bind(this), 
         function(audioFeature) {      

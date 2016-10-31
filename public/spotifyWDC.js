@@ -1,54 +1,5 @@
 "use strict";
-
 var spotifyRequestor;
-
-var Authentication = {
-     // Obtains parameters from the hash of the URL
-    _getHashParams : function getHashParams() {
-        var hashParams = {};
-        var e, r = /([^&;=]+)=?([^&;]*)/g,
-            q = window.location.hash.substring(1);
-        while (e = r.exec(q)) {
-            hashParams[e[1]] = decodeURIComponent(e[2]);
-        }
-        return hashParams;
-    },
-
-    hasTokens : function() {
-        var result = Authentication.getTokens();
-        return !!result.access_token && !!result.refresh_token;
-    },
-
-    getTokens : function() {
-        var result = {};
-
-        // We've saved off the access & refresh token to tableau.password
-        if (tableau.password) {
-            result = JSON.parse(tableau.password);
-        } else {
-            result = Authentication._getHashParams();
-        }
-
-        return result;
-    },
-
-    getAccessToken : function() {
-        return Authentication.getTokens().access_token;
-    },
-
-    // Note: Refresh tokens are valid forever, just need to get a new access token.
-    // Refresh tokens can me manually revoked but won"t expire
-    refreshToken: function(doneHandler) {
-        return $.ajax({
-            url: "/refresh_token",
-            data: {
-                "refresh_token": refresh_token
-            }
-        }).done(function(data) {
-            doneHandler(data.access_token);
-        });
-    }
-};
 
 // Define our Web Data Connector
 (function() {
@@ -57,13 +8,13 @@ var Authentication = {
     myConnector.init = function(initCallback){
         console.log("Initializing Web Data Connector. Phase is " + tableau.phase);
 
-        if (!Authentication.hasTokens()) {
-            console.log("We do not have authentication tokens available");
+        if (!SpotifyAuthentication.hasTokens()) {
+            console.log("We do not have SpotifyAuthentication tokens available");
             if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
                 console.log("Redirecting to login page");
                 window.location.href = "/login";
             } else {
-                tableau.abortForAuth("Missing authentication!");
+                tableau.abortForAuth("Missing SpotifyAuthentication!");
             }
 
             // Early return here to avoid changing any other state
@@ -74,10 +25,10 @@ var Authentication = {
         toggleUIState(true);
 
         console.log("Setting tableau.password to access_token and refresh tokens");
-        tableau.password = JSON.stringify(Authentication.getTokens());
+        tableau.password = JSON.stringify(SpotifyAuthentication.getTokens());
 
         var s = new SpotifyWebApi();
-        s.setAccessToken(Authentication.getAccessToken());
+        s.setAccessToken(SpotifyAuthentication.getAccessToken());
         spotifyRequestor = new SpotifyRequestor(s, tableau.connectionData, tableau.reportProgress);
         
         console.log("Calling initCallback");
