@@ -98,15 +98,11 @@
     ],
     "standardConnections" : [
         {
-            "alias":"All Data",
+            "alias":"Artists and Tracks",
             "tables":[
                 {
                     "id":"artists",
                     "alias":"Artists"
-                },
-                {
-                    "id":"albums",
-                    "alias":"Albums"
                 },
                 {
                     "id":"tracks",
@@ -120,19 +116,34 @@
                         "columnId":"id"
                     },
                     "right":{
-                        "tableAlias":"Albums",
+                        "tableAlias":"Tracks",
                         "columnId":"artist_id"
                     },
                     "joinType":"inner"
+                }
+            ]
+        },
+        {
+            "alias":"Artists and Albums",
+            "tables":[
+                {
+                    "id":"artists",
+                    "alias":"Artists"
                 },
                 {
+                    "id":"albums",
+                    "alias":"Albums"
+                }
+            ],
+            "joins":[
+                {
                     "left":{
-                        "tableAlias":"Albums",
+                        "tableAlias":"Artists",
                         "columnId":"id"
                     },
                     "right":{
-                        "tableAlias":"Tracks",
-                        "columnId":"album_id"
+                        "tableAlias":"Albums",
+                        "columnId":"artist_id"
                     },
                     "joinType":"inner"
                 }
