@@ -43,9 +43,9 @@ var spotifyRequestor;
     myConnector.getSchema = function(schemaCallback) {
         console.log("getSchema called. Making request to ./schema.json");
         $.getJSON( "./schema.json" )
-        .done(function(scehma_json) {
+        .done(function(schema_json) {
             console.log("call to get schema finished");
-            schemaCallback(scehma_json.tables/*, scehma_json.standardConnections*/);
+            schemaCallback(schema_json.tables/*, schema_json.standardConnections*/);
         })
         .fail(function(jqxhr, textStatus, error) {
             var err = textStatus + ", " + error;
