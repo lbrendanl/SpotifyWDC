@@ -26,8 +26,8 @@ SpotifyRequestor.prototype._runWithRetry = function(fn, actionDescription, retry
                 retryCount--;
                 return tryRunPromise();
             } else {
-                console.error("Out of retries, failing the call: " + actionDescription);
-                Promise.reject(err);
+                console.log("Out of retries, failing the call: " + actionDescription);
+                return Promise.reject(err);
             }
         });
     };
@@ -42,22 +42,20 @@ SpotifyRequestor.prototype._runWithRetry = function(fn, actionDescription, retry
 SpotifyRequestor.prototype._makeRequestAndProcessRows = function(description, fn, rowProcessor, rowAccessor) {
     console.log("Making request for " + description);
     rowAccessor = rowAccessor || function(data) { return data.items; };
-    return new Promise(function(resolve, reject) {
+    
+    // Run this request using the retry logic we have
+    return this._runWithRetry(fn, description).then(function(data) {
+        console.log("Received Results for " + description + ". Number of rows: " + rowAccessor(data).length);
+        var toRet = rowAccessor(data).map(rowProcessor);
 
-         // Run this request using the retry logic we have
-         return this._runWithRetry(fn, description).then(function(data) {
-             console.log("Received Results for " + description + ". Number of rows: " + rowAccessor(data).length);
-             var toRet = rowAccessor(data).map(rowProcessor);
+        // Send back some paging information to the caller
+        var paging = {
+            offset : data.offset || 0,
+            total : data.total || 0
+        };
 
-            // Send back some paging information to the caller
-            var paging = {
-                offset : data.offset || 0,
-                total : data.total || 0
-            };
-
-            resolve({rows: toRet, paging: paging});
-         });
-    }.bind(this));
+        return Promise.resolve({rows: toRet, paging: paging});
+    });
 }
 
 // Helper function for paging through multiple requests. Takes the same parameters as _makeRequestAndProcessRows, but
@@ -153,7 +151,7 @@ SpotifyRequestor.prototype.getMyTopArtists = function() {
 
     return this._makeRequestAndProcessRows(
         "getMyTopArtists", 
-        this.s.getMyTopArtists.bind(this, {time_range: this.timeRange}), 
+        this.s.getMyTopArtists.bind(this, {time_range: this.timeRange, limit: 50}), 
         function(artist) {
             console.log("Processing item " + artist.name);              
             return {
@@ -184,7 +182,7 @@ SpotifyRequestor.prototype.getMyTopTracks = function() {
 
     return this._makeRequestAndProcessRows(
         "getMyTopTracks", 
-        this.s.getMyTopTracks.bind(this, {time_range: this.timeRange}), 
+        this.s.getMyTopTracks.bind(this, {time_range: this.timeRange, limit: 50}), 
         function(track) {
             console.log("Processing track " + track.name);              
             return {
@@ -361,7 +359,7 @@ SpotifyRequestor.prototype.getTrackFeatures = function(ids) {
                 "energy": audioFeature.energy,
                 "key": keyLookup[audioFeature.key],
                 "loudness": audioFeature.loudness,
-                "mode": audioFeature.mode,
+                "mode": audioFeature.mode == 1 ? "Major" : "Minor",
                 "speechiness": audioFeature.speechiness,
                 "acousticness": audioFeature.acousticness,
                 "instrumentalness": audioFeature.instrumentalness,

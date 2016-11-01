@@ -11,8 +11,14 @@ var spotifyRequestor;
         if (!SpotifyAuthentication.hasTokens()) {
             console.log("We do not have SpotifyAuthentication tokens available");
             if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
-                console.log("Redirecting to login page");
-                window.location.href = "/login";
+                toggleUIState('signIn');
+                var redirectToSignIn = function() {
+                    console.log("Redirecting to login page");
+                    window.location.href = "/login";
+                };
+                // Just call redirect right away when not demoing
+                redirectToSignIn();
+                $("#signIn").click(redirectToSignIn);
             } else {
                 tableau.abortForAuth("Missing SpotifyAuthentication!");
             }
@@ -22,7 +28,7 @@ var spotifyRequestor;
         }
 
         console.log("Access token found!");
-        toggleUIState(true);
+        toggleUIState('content');
 
         console.log("Setting tableau.password to access_token and refresh tokens");
         tableau.password = JSON.stringify(SpotifyAuthentication.getTokens());
@@ -42,10 +48,10 @@ var spotifyRequestor;
 
     myConnector.getSchema = function(schemaCallback) {
         console.log("getSchema called. Making request to ./schema.json");
-        $.getJSON( "./schema.json" )
-        .done(function(schema_json) {
+        $.getJSON( "./schema_advanced.json" )
+        .done(function(scehma_json) {
             console.log("call to get schema finished");
-            schemaCallback(schema_json.tables/*, schema_json.standardConnections*/);
+            schemaCallback(scehma_json.tables/*, scehma_json.standardConnections*/);
         })
         .fail(function(jqxhr, textStatus, error) {
             var err = textStatus + ", " + error;
@@ -97,13 +103,17 @@ var spotifyRequestor;
         tableau.submit();
     };
     
-    function toggleUIState(showContent) {
-        if (showContent) {
-            $('#spinner').css('display', 'none');
-            $('#content').css('display', 'inline-block');
-        } else {
-            $('#spinner').css('display', 'inline-block');
-            $('#content').css('display', 'none');
+    function toggleUIState(contentToShow) {
+        var allIds = [
+            '#spinner',
+            '#content',
+            '#signIn'
+        ];
+
+        for(var i in allIds) {
+            $(allIds[i]).css('display', 'none');
         }
+
+        $('#' + contentToShow).css('display', 'inline-block');
     }
 })();
