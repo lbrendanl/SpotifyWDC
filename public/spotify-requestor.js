@@ -153,7 +153,7 @@ SpotifyRequestor.prototype.getMyTopArtists = function() {
 
     return this._makeRequestAndProcessRows(
         "getMyTopArtists", 
-        this.s.getMyTopArtists.bind(this, {time_range: this.timeRange}), 
+        this.s.getMyTopArtists.bind(this, {time_range: this.timeRange, limit: 50}), 
         function(artist) {
             console.log("Processing item " + artist.name);              
             return {
@@ -184,7 +184,7 @@ SpotifyRequestor.prototype.getMyTopTracks = function() {
 
     return this._makeRequestAndProcessRows(
         "getMyTopTracks", 
-        this.s.getMyTopTracks.bind(this, {time_range: this.timeRange}), 
+        this.s.getMyTopTracks.bind(this, {time_range: this.timeRange, limit: 50}), 
         function(track) {
             console.log("Processing track " + track.name);              
             return {
