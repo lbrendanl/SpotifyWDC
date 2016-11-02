@@ -36,6 +36,7 @@ app.get('/login', function(req, res) {
 });
 
 app.get('/callback', function(req, res) {
+  // STEP 3 - CODE SENT TO BACKEND
   console.log("/callback called. Exchanging code for access token");
   var code = req.query.code || null;
 
@@ -52,6 +53,7 @@ app.get('/callback', function(req, res) {
     json: true
   };
 
+  // STEP 4 - CODE EXCHANGED FOR ACCESS TOKEN
   console.log("Requesting access token");
   request.post(authOptions, function(error, response, body) {
     console.log("Received access token response");
@@ -59,6 +61,7 @@ app.get('/callback', function(req, res) {
       var access_token = body.access_token;
       var refresh_token = body.refresh_token;
 
+      // STEP 5 - TOKEN PASSED BACK TO THE CONNECTOR
       // Pass the token to the browser to make requests from there
       console.log("Redirecting back to start page");
       res.redirect('/#' +

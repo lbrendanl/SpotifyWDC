@@ -8,16 +8,16 @@ var spotifyRequestor;
     myConnector.init = function(initCallback){
         console.log("Initializing Web Data Connector. Phase is " + tableau.phase);
 
+        // STEP 1 - WDC IS LOADED
         if (!SpotifyAuthentication.hasTokens()) {
             console.log("We do not have SpotifyAuthentication tokens available");
             if (tableau.phase != tableau.phaseEnum.gatherDataPhase) {
                 toggleUIState('signIn');
                 var redirectToSignIn = function() {
+                    // STEP 2 - REDIRECT TO LOGIN PAGE
                     console.log("Redirecting to login page");
                     window.location.href = "/login";
                 };
-                // Just call redirect right away when not demoing
-                redirectToSignIn();
                 $("#signIn").click(redirectToSignIn);
             } else {
                 tableau.abortForAuth("Missing SpotifyAuthentication!");
@@ -30,6 +30,7 @@ var spotifyRequestor;
         console.log("Access token found!");
         toggleUIState('content');
 
+        // STEP 6 - TOKEN STORED IN TABLEAU PASSWORD
         console.log("Setting tableau.password to access_token and refresh tokens");
         tableau.password = JSON.stringify(SpotifyAuthentication.getTokens());
 

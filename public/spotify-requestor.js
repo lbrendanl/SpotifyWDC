@@ -213,6 +213,7 @@ SpotifyRequestor.prototype.getMySavedAlbums = function() {
         return Promise.resolve(this._mySavedAlbums);
     }
 
+    // First request whole albums which are saved to the library
     return this._makeRequestAndProcessRowsWithPaging(
         "getMySavedAlbums", 
         this.s.getMySavedAlbums.bind(this),
@@ -232,9 +233,24 @@ SpotifyRequestor.prototype.getMySavedAlbums = function() {
                 "type": albumObject.album.type,
                 "uri": albumObject.album.uri
             };
-        }).then(function(data) {
-            this._mySavedAlbums = data;
-            return data;
+        }).then(function(savedAlbums) {
+            // To get the rest of the albums, we first get all the user's saved tracks, then retrieve album
+            // info for those tracks.
+            return this.getMySavedTracks().then(function(rows) {
+                var allAlbums = [];
+                var albums = rows.map(function(row) { return row.album_id; } );
+                for(var i in albums) {
+                    if (allAlbums.indexOf(albums[i]) == -1) {
+                        allAlbums.push(albums[i]);
+                    }
+                }
+                
+                return this.getAlbums(allAlbums).then(function(addedAlbums) {
+                    var finalResults = savedAlbums.concat(addedAlbums);
+                    this._mySavedAlbums = finalResults;
+                    return finalResults;
+                }.bind(this));
+            }.bind(this));
         }.bind(this));
 }
 
@@ -332,6 +348,32 @@ SpotifyRequestor.prototype.getArtists = function(ids) {
             };
         },
         function(data) { return data.artists; });
+}
+
+// Gets albums by their ids
+SpotifyRequestor.prototype.getAlbums = function(ids) {
+    // TODO - cache the artists we have already retrieved by their id
+
+    // Spotify only lets us request 20 albums at a time
+    return this._getCollectionFromIds(ids, 20, "getAlbums",
+        this.s.getAlbums.bind(this), 
+        function(album) {
+            // Make sure this list is kept in sync with the saved albums endpoint    
+            return {
+                "artist_id": album.artists[0].id,
+                "genre1": album.genres[0] || null,
+                "genre2": album.genres[1] || null,
+                "href": album.href,
+                "id": album.id,
+                "image_link": album.images[0] ? album.images[0].url : null,
+                "name": album.name,
+                "popularity": album.popularity,
+                "release_date": album.release_date,
+                "type": album.type,
+                "uri": album.uri                      
+            };
+        },
+        function(data) { return data.albums; });
 }
 
 // Gets track features by their ids
