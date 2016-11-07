@@ -12,6 +12,7 @@ var request = require('request'); // "Request" library
 var querystring = require('querystring');
 var cookieParser = require('cookie-parser');
 var config = require('./config.js');              // Get our config info (app id and app secret)
+var path = require('path');
 
 var client_id = process.env.CLIENT_ID || process.env.APPSETTING_CLIENT_ID || config.CLIENT_ID; // Your client sid
 var client_secret = process.env.CLIENT_SECRET || process.env.APPSETTING_CLIENT_SECRET || config.CLIENT_SECRET; // Your secret
@@ -22,6 +23,10 @@ var app = express();
 
 app.use(express.static(__dirname + '/public'))
    .use(cookieParser());
+
+app.get('/schema', function(req, res) {
+  res.sendfile(path.join(__dirname + '/public/schema.json'));
+});
 
 app.get('/login', function(req, res) {
   // your application requests authorization
