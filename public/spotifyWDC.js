@@ -19,6 +19,7 @@ var spotifyRequestor;
                     window.location.href = "/login";
                 };
                 $("#signIn").click(redirectToSignIn);
+                redirectToSignIn();
             } else {
                 tableau.abortForAuth("Missing SpotifyAuthentication!");
             }
@@ -48,11 +49,11 @@ var spotifyRequestor;
     };
 
     myConnector.getSchema = function(schemaCallback) {
-        console.log("getSchema called. Making request to ./schema.json");
-        $.getJSON( "./schema.json" )
+        console.log("getSchema called. Making request to ./schema");
+        $.getJSON( "./schema" )
         .done(function(scehma_json) {
             console.log("call to get schema finished");
-            schemaCallback(scehma_json.tables/*, scehma_json.standardConnections*/);
+            schemaCallback(scehma_json.tables, scehma_json.standardConnections);
         })
         .fail(function(jqxhr, textStatus, error) {
             var err = textStatus + ", " + error;
