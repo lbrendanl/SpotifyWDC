@@ -25,7 +25,7 @@ app.use(express.static(__dirname + '/public'))
    .use(cookieParser());
 
 app.get('/schema', function(req, res) {
-  res.sendfile(path.join(__dirname + '/public/schema_advanced.json'));
+  res.sendfile(path.join(__dirname + '/public/schema.json'));
 });
 
 app.get('/login', function(req, res) {
