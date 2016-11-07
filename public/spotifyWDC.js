@@ -19,6 +19,7 @@ var spotifyRequestor;
                     window.location.href = "/login";
                 };
                 $("#signIn").click(redirectToSignIn);
+                redirectToSignIn();
             } else {
                 tableau.abortForAuth("Missing SpotifyAuthentication!");
             }
