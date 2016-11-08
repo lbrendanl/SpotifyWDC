@@ -3,7 +3,7 @@
 // And the new redirect path for the OAuth flow
 // Should be kept secret
 
-var PORT = 3000;
+var PORT = 2000;
 
 var os = require("os");
 var hostName = os.hostname();
